@@ -29,10 +29,12 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if false;
 
-      // Création : uniquement par un utilisateur authentifié, comme P1, salon vide.
+      // Création : uniquement par un utilisateur authentifié, comme P1, salon vide,
+      // pour l'un des jeux reconnus (à tenir synchronisé avec src/games/registry.js).
       allow create: if isSignedIn()
         && request.resource.data.players.P1.uid == request.auth.uid
-        && request.resource.data.players.P2 == null;
+        && request.resource.data.players.P2 == null
+        && request.resource.data.gameId in ['marelle', 'awale'];
 
       // Mise à jour : seuls les deux joueurs du salon peuvent écrire
       // (rejoindre en P2, jouer un coup, demander une revanche).

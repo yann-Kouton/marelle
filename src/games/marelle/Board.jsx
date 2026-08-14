@@ -19,14 +19,8 @@ const PLAYER_COLOR = {
   P2: "var(--p2-color, #D69A2D)",
 };
 
-export default function Board({
-  board,
-  playable = [],
-  selected = null,
-  winningLine = null,
-  onCellClick,
-  disabled = false,
-}) {
+export default function Board({ state, playable = [], onCellClick, disabled = false }) {
+  const { board, selected = null, winningLine = null } = state;
   const isWinningEdge = (a, b) =>
     winningLine && winningLine.includes(a) && winningLine.includes(b);
 

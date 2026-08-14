@@ -1,10 +1,18 @@
-# Marelle à trois pions — PWA
+# Jeux de plateau — PWA
 
-Jeu de la marelle à trois pions (*Tapatan* / *Achi* / *Three Men's Morris* / jeu du char) en
-React, jouable :
+Un hub de jeux de stratégie traditionnels (sans hasard) en React, jouables :
 - **en local**, à deux sur le même écran ;
-- **en ligne**, via un salon Firebase (compte joueur, avatar, chat texte en temps réel) ;
+- **en ligne**, via un salon Firebase (compte joueur, avatar, chat texte et vocal en
+  temps réel) ;
 - installable comme **application (PWA)** sur mobile et desktop.
+
+Jeux disponibles aujourd'hui :
+- **Carreau chinois** (*Tapatan* / *Achi* / *Three Men's Morris* / jeu du char)
+- **Awalé** (*Awari* / *Awélé* / Mancala à 2×6 trous)
+
+L'app est conçue pour qu'ajouter un nouveau jeu n'exige de toucher qu'un seul dossier
+(voir [Ajouter un nouveau jeu](#ajouter-un-nouveau-jeu)) — tout le reste (comptes,
+salons, chat, vocal, PWA) est déjà générique et partagé entre les jeux.
 
 ## Démarrer en local
 
@@ -48,31 +56,49 @@ reste de l'app fonctionne normalement (avatar de secours = initiales du pseudo).
 
 ```
 src/
-  game/engine.js         logique pure du jeu (pose, déplacement, victoire, blocage)
-  components/            Board, StatusBar, Chat, Avatar, RequireAuth
-  hooks/useAuth.jsx       contexte d'authentification (utilisateur + profil Firestore)
-  firebase/config.js      initialisation Firebase (app, Firestore, Auth)
-  firebase/auth.js        inscription, connexion, déconnexion, profil utilisateur
-  firebase/cloudinary.js  upload d'avatar (upload non signé) + miniatures
-  firebase/rooms.js       création/jonction de salon, sync de partie, chat (Firestore)
+  games/
+    registry.js           liste des jeux disponibles dans le hub
+    marelle/
+      engine.js            logique pure (pose, déplacement, victoire, blocage)
+      Board.jsx             plateau SVG
+      StatusBar.jsx          bandeau d'état (tour, victoire)
+      index.js               descripteur du jeu (voir plus bas)
+    awale/
+      engine.js            logique pure (semis, capture, règle de la famine)
+      Board.jsx             plateau (2×6 trous + scores)
+      StatusBar.jsx          bandeau d'état
+      index.js               descripteur du jeu
+  components/            Chat, Avatar, VoiceCallBar, BackLink, RequireAuth
+  hooks/
+    useAuth.jsx            contexte d'authentification (utilisateur + profil Firestore)
+    useVoiceCall.js        appel vocal WebRTC (générique, indépendant du jeu)
+  firebase/
+    config.js              initialisation Firebase (app, Firestore, Auth)
+    auth.js                 inscription, connexion, déconnexion, profil utilisateur
+    cloudinary.js           upload d'avatar (upload non signé) + miniatures
+    rooms.js                création/jonction de salon, sync de partie, chat — générique,
+                             paramétré par `gameId`
   pages/
-    Home.jsx              choix du mode + état de connexion
-    Local.jsx              mode local (pass-and-play)
-    Login.jsx / Signup.jsx création de compte / connexion
-    Profile.jsx            pseudo + avatar (upload Cloudinary)
-    OnlineLobby.jsx         créer / rejoindre un salon (compte requis)
-    OnlineRoom.jsx          salon en ligne : plateau synchronisé + chat + avatars
+    Home.jsx                hub : liste des jeux (à partir du registre)
+    GameHome.jsx             menu d'un jeu : local / en ligne
+    GameLocal.jsx            mode local (pass-and-play), générique
+    GameOnlineLobby.jsx      créer / rejoindre un salon, générique
+    GameOnlineRoom.jsx       salon en ligne : plateau synchronisé + chat + vocal, générique
+    Login.jsx / Signup.jsx  création de compte / connexion
+    Profile.jsx              pseudo + avatar (upload Cloudinary)
 firestore.rules            règles de sécurité à publier sur Firebase
 ```
 
 ### Comment fonctionne le mode en ligne
 
-Chaque salon est un document Firestore (`rooms/{code}`) qui contient l'état complet de
-la partie (plateau, tour, phase, vainqueur) et le pseudo/avatar de chaque joueur. Quand
-un joueur joue un coup, on calcule le nouvel état localement avec `game/engine.js`, puis
-on l'écrit dans Firestore : l'autre joueur le reçoit en temps réel via `onSnapshot`. Le
-chat est une sous-collection (`rooms/{code}/messages`) avec le même principe. Il n'y a
-pas de serveur de jeu à héberger : Firestore fait office de "source de vérité" partagée.
+Chaque salon est un document Firestore (`rooms/{code}`) avec un champ `gameId`
+(`"marelle"` ou `"awale"`) et l'état de partie complet (spécifique au jeu). Quand un
+joueur joue un coup, le nouvel état est calculé localement avec le moteur du jeu
+concerné, puis écrit dans Firestore : l'autre joueur le reçoit en temps réel via
+`onSnapshot`. Le chat (`rooms/{code}/messages`) et la signalisation vocale
+(`rooms/{code}/voice/call`) sont entièrement indépendants du jeu — aucune modification
+nécessaire pour ajouter un nouveau jeu. Il n'y a pas de serveur de jeu à héberger :
+Firestore fait office de "source de vérité" partagée.
 
 ### Comptes et avatars
 
@@ -98,6 +124,50 @@ document éphémère supprimé automatiquement à la fin de l'appel.
   Twilio, ou ton propre coturn) dans `ICE_SERVERS` (`src/hooks/useVoiceCall.js`).
 - Le micro n'est demandé qu'au clic sur "Appeler"/"Répondre" — jamais automatiquement.
 
+## Ajouter un nouveau jeu
+
+Toute la logique commune (comptes, salons, chat, vocal, PWA) est déjà générique. Pour
+ajouter un jeu, il suffit de créer `src/games/<id>/` avec quatre fichiers :
+
+1. **`engine.js`** — logique pure, sans aucun import React/Firebase :
+   - `createInitialState(firstPlayer)` → l'état initial (doit inclure `turn` et
+     `winner: null | "P1" | "P2" | "draw"`)
+   - une fonction de coup, ex. `applyMove(state, payload)` → nouvel état (ou le même
+     état si le coup est invalide — c'est ce qui permet à l'UI de savoir si le coup a
+     été accepté)
+   - `getPlayableCells(state)` → les coups actuellement valides (pour la mise en
+     surbrillance)
+2. **`Board.jsx`** — reçoit `{ state, playable, onCellClick, disabled }` et affiche le
+   plateau. Libre à toi d'interpréter `state` comme tu veux (c'est l'objet retourné par
+   ton moteur).
+3. **`StatusBar.jsx`** — reçoit `{ state, names, youAre }` et affiche le tour en cours /
+   le résultat.
+4. **`index.js`** — le descripteur qui assemble le tout :
+
+   ```js
+   import * as engine from "./engine";
+   import Board from "./Board";
+   import StatusBar from "./StatusBar";
+
+   export const monJeu = {
+     id: "mon-jeu",
+     label: "Mon Jeu",
+     aka: "Autres noms",
+     shortDescription: "Une phrase.",
+     instructions: "Règles en une ou deux phrases, affichées en mode local.",
+     createInitialState: engine.createInitialState,
+     applyMove: engine.applyMove,
+     getPlayableCells: engine.getPlayableCells,
+     BoardComponent: Board,
+     StatusBarComponent: StatusBar,
+   };
+   ```
+
+Puis référence-le dans `src/games/registry.js` (`GAMES` et son icône dans
+`ICONS` de `src/pages/Home.jsx`), et ajoute son `id` à la liste autorisée dans
+`firestore.rules` (`gameId in [...]`). C'est tout — le hub, le mode local, les salons en
+ligne, le chat et le vocal fonctionnent immédiatement pour le nouveau jeu.
+
 ## À propos du Bluetooth
 
 Le Web Bluetooth (utilisable depuis un navigateur) est conçu pour connecter un navigateur
@@ -111,7 +181,9 @@ Bluetooth.
 
 ## Feuille de route
 
-- [x] Moteur de jeu (pose, déplacement, victoire, blocage)
+- [x] Moteur de jeu Carreau chinois (pose, déplacement, victoire, blocage)
+- [x] Moteur de jeu Awalé (semis, capture, règle de la famine)
+- [x] Hub multi-jeux (architecture générique, extensible)
 - [x] Mode local (pass-and-play)
 - [x] Mode en ligne : salons Firebase, sync de partie, chat texte, revanche
 - [x] Comptes joueurs (e-mail/mot de passe) + avatars Cloudinary
@@ -140,13 +212,13 @@ firebase deploy
 
 ### Déployer sur Vercel
 
-Le projet est une **SPA** (React Router gère les routes côté client, ex. `/online/ABCDE`) :
-sans configuration, Vercel renvoie une 404 sur ces routes car aucun fichier réel n'existe
-à ce chemin. Le fichier `vercel.json` à la racine du projet corrige ça en renvoyant
-toujours `index.html`, quelle que soit l'URL demandée — il est déjà inclus, rien à faire
-de plus. En important le projet sur [vercel.com](https://vercel.com), choisis le preset
-**Vite** ; le build (`npm run build`) et le dossier de sortie (`dist`) sont détectés
-automatiquement.
+Le projet est une **SPA** (React Router gère les routes côté client, ex.
+`/games/awale/online/ABCDE`) : sans configuration, Vercel renvoie une 404 sur ces routes
+car aucun fichier réel n'existe à ce chemin. Le fichier `vercel.json` à la racine du
+projet corrige ça en renvoyant toujours `index.html`, quelle que soit l'URL demandée — il
+est déjà inclus, rien à faire de plus. En important le projet sur
+[vercel.com](https://vercel.com), choisis le preset **Vite** ; le build
+(`npm run build`) et le dossier de sortie (`dist`) sont détectés automatiquement.
 
 N'oublie pas de renseigner tes variables d'environnement (`VITE_FIREBASE_...`,
 `VITE_CLOUDINARY_...`) dans **Project Settings > Environment Variables** sur Vercel — le

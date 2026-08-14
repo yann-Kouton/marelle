@@ -4,6 +4,7 @@ import {
   setDoc,
   updateDoc,
   onSnapshot,
+  getDoc,
   serverTimestamp,
   runTransaction,
   addDoc,
@@ -13,7 +14,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { db } from "./config";
-import { createInitialState } from "../game/engine";
+import { GAMES_BY_ID } from "../games/registry";
 
 const ROOMS = "rooms";
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sans caractères ambigus
@@ -34,8 +35,12 @@ function playerFrom(user, profile) {
   };
 }
 
-// Crée un salon et y place le créateur comme P1. Réessaie si le code existe déjà.
-export async function createRoom(user, profile) {
+// Crée un salon pour le jeu `gameId` et y place le créateur comme P1.
+// Réessaie si le code existe déjà.
+export async function createRoom(gameId, user, profile) {
+  const game = GAMES_BY_ID[gameId];
+  if (!game) throw new Error("jeu-inconnu");
+
   const p1 = playerFrom(user, profile);
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateRoomCode();
@@ -46,10 +51,11 @@ export async function createRoom(user, profile) {
         if (snap.exists()) throw new Error("code-pris");
         tx.set(ref, {
           code,
+          gameId,
           createdAt: serverTimestamp(),
           status: "waiting", // waiting | playing | finished
           players: { P1: p1, P2: null },
-          game: createInitialState("P1"),
+          game: game.createInitialState("P1"),
           rematch: { P1: false, P2: false },
         });
       });
@@ -60,6 +66,13 @@ export async function createRoom(user, profile) {
     }
   }
   throw new Error("Impossible de générer un salon, réessaie.");
+}
+
+// Consulte un salon sans le rejoindre (pour vérifier qu'il correspond au bon jeu).
+export async function peekRoom(code) {
+  const ref = doc(db, ROOMS, code.trim().toUpperCase());
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data() : null;
 }
 
 // Rejoint un salon existant en tant que P2 (ou reprend sa place si déjà connu).
@@ -110,10 +123,12 @@ export async function requestRematch(code, seat) {
   await updateDoc(ref, { [`rematch.${seat}`]: true });
 }
 
-export async function applyRematch(code, firstPlayer) {
+export async function applyRematch(code, gameId, firstPlayer) {
+  const game = GAMES_BY_ID[gameId];
+  if (!game) throw new Error("jeu-inconnu");
   const ref = doc(db, ROOMS, code);
   await updateDoc(ref, {
-    game: createInitialState(firstPlayer),
+    game: game.createInitialState(firstPlayer),
     rematch: { P1: false, P2: false },
   });
 }

@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Marelle à trois pions',
-        short_name: 'Marelle',
-        description: "Jeu de la marelle à trois pions (Tapatan / Achi / Three Men's Morris) — en local, en ligne ou entre amis.",
+        name: 'Jeux de plateau',
+        short_name: 'Jeux',
+        description: "Hub de jeux de stratégie traditionnels (Carreau chinois, Awalé…) — en local, en ligne ou entre amis.",
         theme_color: '#17181A',
         background_color: '#17181A',
         display: 'standalone',

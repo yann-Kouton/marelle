@@ -2,12 +2,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import RequireAuth from "./components/RequireAuth";
 import Home from "./pages/Home";
-import Local from "./pages/Local";
+import GameHome from "./pages/GameHome";
+import GameLocal from "./pages/GameLocal";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Profile from "./pages/Profile";
-import OnlineLobby from "./pages/OnlineLobby";
-import OnlineRoom from "./pages/OnlineRoom";
+import GameOnlineLobby from "./pages/GameOnlineLobby";
+import GameOnlineRoom from "./pages/GameOnlineRoom";
 
 export default function App() {
   return (
@@ -15,14 +16,15 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/local" element={<Local />} />
+          <Route path="/games/:gameId" element={<GameHome />} />
+          <Route path="/games/:gameId/local" element={<GameLocal />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
           <Route element={<RequireAuth />}>
             <Route path="/profile" element={<Profile />} />
-            <Route path="/online" element={<OnlineLobby />} />
-            <Route path="/online/:code" element={<OnlineRoom />} />
+            <Route path="/games/:gameId/online" element={<GameOnlineLobby />} />
+            <Route path="/games/:gameId/online/:code" element={<GameOnlineRoom />} />
           </Route>
         </Routes>
       </BrowserRouter>
