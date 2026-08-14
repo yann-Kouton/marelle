@@ -3,7 +3,7 @@ export default function StatusBar({ state, names = { P1: "Joueur 1", P2: "Joueur
 
   let message;
   if (winner) {
-    message = `${names[winner]} remporte la partie !`;
+    message = `${names[winner]} remporte la partie 🎉`;
   } else if (phase === "placement") {
     message = `${names[turn]} pose un pion (${placed[turn]}/3)`;
   } else {

@@ -39,7 +39,7 @@ export default function Signup() {
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             maxLength={20}
-            placeholder="ex. Esmel"
+            placeholder="ex. Awa"
             className="w-full mt-1 bg-stone-800 text-stone-100 placeholder-stone-500 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-600"
           />
         </div>

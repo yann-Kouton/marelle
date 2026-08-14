@@ -4,7 +4,9 @@ import Board from "../components/Board";
 import StatusBar from "../components/StatusBar";
 import Chat from "../components/Chat";
 import Avatar from "../components/Avatar";
+import VoiceCallBar from "../components/VoiceCallBar";
 import { useAuth } from "../hooks/useAuth";
+import { useVoiceCall } from "../hooks/useVoiceCall";
 import {
   subscribeToRoom,
   subscribeToChat,
@@ -60,6 +62,8 @@ export default function OnlineRoom() {
         ? "P2"
         : null
       : null;
+
+  const voice = useVoiceCall(code, seat);
 
   const handleCellClick = useCallback(
     (index) => {
@@ -148,6 +152,10 @@ export default function OnlineRoom() {
           <Avatar url={room.players.P2?.avatarUrl} name={names.P2} size={36} />
         </div>
       </div>
+
+      {!waitingForOpponent && (
+        <VoiceCallBar code={code} mySeat={seat} voice={voice} opponentPresent={!waitingForOpponent} />
+      )}
 
       {waitingForOpponent ? (
         <p className="text-stone-400 text-sm">

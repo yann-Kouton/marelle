@@ -50,6 +50,16 @@ service cloud.firestore {
           && request.resource.data.text.size() <= 500;
         allow update, delete: if false;
       }
+
+      // Signalisation WebRTC pour l'appel vocal : réservée aux deux joueurs
+      // du salon (offer/answer + candidats ICE).
+      match /voice/{callId} {
+        allow read, write: if isPlayerInRoom(get(/databases/$(database)/documents/rooms/$(code)));
+
+        match /{candidateCollection}/{candidateId} {
+          allow read, write: if isPlayerInRoom(get(/databases/$(database)/documents/rooms/$(code)));
+        }
+      }
     }
   }
 }

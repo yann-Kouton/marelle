@@ -29,7 +29,7 @@ export default function Home() {
 
       <div>
         <h1 className="text-3xl font-semibold text-stone-100 tracking-tight">
-          Le Carreau chinois
+          La marelle à trois pions
         </h1>
         <p className="text-stone-400 mt-2 max-w-sm">
           Aussi appelé Tapatan, Achi, ou jeu du char. Aligne tes 3 pions pour gagner.

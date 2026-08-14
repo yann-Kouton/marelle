@@ -82,6 +82,22 @@ directement du navigateur vers Cloudinary (upload non signé, pas de backend né
 puis l'URL retournée est stockée dans Firestore et affichée partout (lobby, salon, chat)
 via le composant `Avatar`, avec un recadrage carré automatique côté Cloudinary.
 
+### Vocal (WebRTC)
+
+L'appel vocal est un canal **WebRTC pair-à-pair** : l'audio circule directement entre les
+deux navigateurs, pas via Firebase. Firestore ne sert qu'à la "poignée de main" initiale
+(échange de l'offer/answer SDP et des candidats ICE), dans `rooms/{code}/voice/call` — un
+document éphémère supprimé automatiquement à la fin de l'appel.
+
+- P1 est toujours l'appelant, P2 toujours le répondeur (évite toute négociation sur "qui
+  commence").
+- Seuls des serveurs **STUN publics** sont utilisés (`stun.l.google.com`). Ça fonctionne
+  sur la grande majorité des connexions domestiques, mais un appel peut échouer derrière
+  un NAT symétrique strict ou certains réseaux d'entreprise. Si ça arrive souvent chez tes
+  utilisateurs, il faut ajouter un serveur **TURN** (ex. [metered.ca](https://metered.ca),
+  Twilio, ou ton propre coturn) dans `ICE_SERVERS` (`src/hooks/useVoiceCall.js`).
+- Le micro n'est demandé qu'au clic sur "Appeler"/"Répondre" — jamais automatiquement.
+
 ## À propos du Bluetooth
 
 Le Web Bluetooth (utilisable depuis un navigateur) est conçu pour connecter un navigateur
@@ -89,10 +105,9 @@ Le Web Bluetooth (utilisable depuis un navigateur) est conçu pour connecter un 
 navigateurs entre eux d'égal à égal. Un vrai mode "Bluetooth pur" entre deux téléphones,
 sans passer par Internet, n'est donc pas réalisable proprement en PWA web standard.
 
-Pour un mode "jouer à distance sans connexion classique", l'alternative technique
-réaliste est un **canal WebRTC en pair-à-pair**, avec un échange d'adresse minimal (QR
-code ou code à copier-coller) — ça fonctionne même en Wi-Fi local. C'est la prochaine
-brique à ajouter (voir feuille de route).
+Le mode vocal ci-dessus (WebRTC) fonctionne d'ailleurs très bien en Wi-Fi local, ce qui
+couvre le cas d'usage "jouer à distance sans vraie connexion mobile" sans dépendre du
+Bluetooth.
 
 ## Feuille de route
 
@@ -100,8 +115,9 @@ brique à ajouter (voir feuille de route).
 - [x] Mode local (pass-and-play)
 - [x] Mode en ligne : salons Firebase, sync de partie, chat texte, revanche
 - [x] Comptes joueurs (e-mail/mot de passe) + avatars Cloudinary
+- [x] Vocal en temps réel (WebRTC, signalé via Firebase)
 - [x] PWA installable (manifest + service worker)
-- [ ] Vocal en temps réel (WebRTC, signalé via Firebase)
+- [ ] Serveur TURN pour fiabiliser le vocal derrière NAT strict
 - [ ] Mode "réseau local / QR code" en remplacement du Bluetooth pur
 - [ ] Historique des parties / classement
 
