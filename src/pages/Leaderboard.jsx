@@ -22,11 +22,13 @@ export default function Leaderboard() {
 
   const [top, setTop] = useState([]);
   const [myEntry, setMyEntry] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     if (!gameId) return;
     ensureSeasonRollover(gameId).catch(() => {});
-    const unsub = subscribeToTopPlayers(gameId, 10, setTop);
+    setLoadError(null);
+    const unsub = subscribeToTopPlayers(gameId, 10, setTop, setLoadError);
     return unsub;
   }, [gameId]);
 
@@ -62,7 +64,13 @@ export default function Leaderboard() {
       </div>
 
       <div className="w-full max-w-sm flex flex-col gap-2">
-        {top.length === 0 && (
+        {loadError && (
+          <p className="text-sm text-red-400 text-center py-8">
+            Impossible de charger le classement pour l'instant. Réessaie dans un instant ou
+            préviens l'organisateur si ça persiste.
+          </p>
+        )}
+        {!loadError && top.length === 0 && (
           <p className="text-sm text-stone-500 text-center py-8">
             Aucune victoire enregistrée en ligne ce mois-ci pour l'instant — sois le premier !
           </p>

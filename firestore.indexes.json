@@ -1,0 +1,14 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "leaderboardEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "gameId", "order": "ASCENDING" },
+        { "fieldPath": "season", "order": "ASCENDING" },
+        { "fieldPath": "wins", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

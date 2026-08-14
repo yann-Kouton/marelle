@@ -1,6 +1,7 @@
 rules_version = '2';
 
-// À déployer avec : firebase deploy --only firestore:rules
+// À déployer avec : firebase deploy --only firestore
+// (règles ET index composites, déclarés dans firebase.json / firestore.indexes.json)
 // (ou coller le contenu dans Console Firebase > Firestore Database > Règles)
 service cloud.firestore {
   match /databases/{database}/documents {

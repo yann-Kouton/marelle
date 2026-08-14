@@ -78,7 +78,7 @@ export async function getTopPlayers(gameId, max = 10, season = currentSeasonKey(
   return snap.docs.map((d) => d.data());
 }
 
-export function subscribeToTopPlayers(gameId, max, callback) {
+export function subscribeToTopPlayers(gameId, max, callback, onError) {
   const season = currentSeasonKey();
   const q = query(
     collection(db, ENTRIES),
@@ -87,7 +87,17 @@ export function subscribeToTopPlayers(gameId, max, callback) {
     orderBy("wins", "desc"),
     limit(max)
   );
-  return onSnapshot(q, (snap) => callback(snap.docs.map((d) => d.data())));
+  return onSnapshot(
+    q,
+    (snap) => callback(snap.docs.map((d) => d.data())),
+    (err) => {
+      // Sans ça, une erreur ici (le plus souvent : index composite
+      // Firestore manquant sur gameId+season+wins) disparaît en silence et
+      // le classement reste vide indéfiniment, sans aucun signal.
+      console.error("[leaderboard] subscribeToTopPlayers a échoué :", err);
+      onError?.(err);
+    }
+  );
 }
 
 export async function getMyEntry(gameId, uid) {
