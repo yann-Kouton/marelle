@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { RotateCcw, Copy, Check } from "lucide-react";
 import Chat from "../components/Chat";
 import Avatar from "../components/Avatar";
 import VoiceCallBar from "../components/VoiceCallBar";
 import BackLink from "../components/BackLink";
+import ChampionArrival from "../components/ChampionArrival";
+import { RankedName, tierForRank, frameStyleFromId } from "../components/Rank";
 import { useAuth } from "../hooks/useAuth";
 import { useVoiceCall } from "../hooks/useVoiceCall";
 import { GAMES_BY_ID } from "../games/registry";
+import { getTopPlayers, recordWin } from "../firebase/leaderboard";
 import {
   subscribeToRoom,
   subscribeToChat,
@@ -26,6 +29,30 @@ export default function GameOnlineRoom() {
   const [messages, setMessages] = useState([]);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [top10, setTop10] = useState([]);
+  const [arrivalQueue, setArrivalQueue] = useState([]);
+  const prevPlayersRef = useRef(null);
+  const prevWinnerRef = useRef(null);
+
+  // Classement mondial du jeu (Top 10), pour styliser les avatars/pseudos
+  // et détecter l'arrivée d'un joueur Diamant/Or/Bronze dans le salon.
+  useEffect(() => {
+    if (!gameId) return;
+    getTopPlayers(gameId, 10)
+      .then(setTop10)
+      .catch(() => {});
+  }, [gameId]);
+
+  function tierFor(uid) {
+    if (!uid) return null;
+    const idx = top10.findIndex((p) => p.uid === uid);
+    return idx === -1 ? null : tierForRank(idx + 1);
+  }
+
+  function frameFor(player) {
+    if (!player) return null;
+    return tierFor(player.uid) || (player.equippedFrame ? frameStyleFromId(player.equippedFrame) : null);
+  }
 
   // Tente de rejoindre le salon (ou de reprendre sa place) dès l'arrivée sur l'URL.
   useEffect(() => {
@@ -63,6 +90,45 @@ export default function GameOnlineRoom() {
         ? "P2"
         : null
       : null;
+
+  // Annonce l'arrivée d'un joueur Diamant/Or/Bronze quand son siège passe de
+  // vide à occupé (rejoint la partie ou reprend sa place après reconnexion).
+  useEffect(() => {
+    if (!room || top10.length === 0) {
+      if (room) prevPlayersRef.current = { P1: room.players.P1, P2: room.players.P2 };
+      return;
+    }
+    const prev = prevPlayersRef.current;
+    if (prev) {
+      ["P1", "P2"].forEach((seatKey) => {
+        const wasEmpty = !prev[seatKey];
+        const nowPlayer = room.players[seatKey];
+        if (wasEmpty && nowPlayer) {
+          const tier = tierFor(nowPlayer.uid);
+          if (tier && tier.key !== "top10") {
+            setArrivalQueue((q) => [...q, { name: nowPlayer.name, tier }]);
+          }
+        }
+      });
+    }
+    prevPlayersRef.current = { P1: room.players.P1, P2: room.players.P2 };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room, top10]);
+
+  // Enregistre la victoire en ligne du gagnant (une seule fois par partie,
+  // uniquement depuis le client du gagnant lui-même).
+  useEffect(() => {
+    const winner = room?.game?.winner;
+    if (!room || !seat || !winner) {
+      if (room && !room.game.winner) prevWinnerRef.current = null;
+      return;
+    }
+    if (winner !== "draw" && winner === seat && prevWinnerRef.current !== winner) {
+      recordWin(gameId, user, profile).catch(() => {});
+    }
+    prevWinnerRef.current = winner;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.game?.winner, seat]);
 
   const voice = useVoiceCall(code, seat);
 
@@ -180,13 +246,13 @@ export default function GameOnlineRoom() {
 
       <div className="w-full max-w-sm flex items-center justify-between px-2">
         <div className="flex items-center gap-2">
-          <Avatar url={room.players.P1?.avatarUrl} name={names.P1} size={36} />
-          <span className="text-sm text-stone-300">{names.P1}</span>
+          <Avatar url={room.players.P1?.avatarUrl} name={names.P1} size={36} frame={frameFor(room.players.P1)} />
+          <RankedName name={names.P1} tier={tierFor(room.players.P1?.uid)} className="text-sm text-stone-300" />
         </div>
         <span className="text-stone-600 text-xs">vs</span>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-stone-300">{names.P2}</span>
-          <Avatar url={room.players.P2?.avatarUrl} name={names.P2} size={36} />
+          <RankedName name={names.P2} tier={tierFor(room.players.P2?.uid)} className="text-sm text-stone-300" />
+          <Avatar url={room.players.P2?.avatarUrl} name={names.P2} size={36} frame={frameFor(room.players.P2)} />
         </div>
       </div>
 
@@ -226,6 +292,11 @@ export default function GameOnlineRoom() {
       <div className="w-full max-w-sm">
         <Chat messages={messages} onSend={handleSend} myUid={user?.uid} />
       </div>
+
+      <ChampionArrival
+        event={arrivalQueue[0] || null}
+        onDone={() => setArrivalQueue((q) => q.slice(1))}
+      />
     </div>
   );
 }

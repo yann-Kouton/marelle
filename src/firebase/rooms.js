@@ -32,6 +32,7 @@ function playerFrom(user, profile) {
     uid: user.uid,
     name: profile?.displayName || user.displayName || "Joueur",
     avatarUrl: profile?.avatarUrl || null,
+    equippedFrame: profile?.equippedFrame || null,
   };
 }
 

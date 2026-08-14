@@ -1,4 +1,5 @@
 import { Link, Navigate, useParams } from "react-router-dom";
+import { Trophy } from "lucide-react";
 import { isFirebaseConfigured } from "../firebase/config";
 import { useAuth } from "../hooks/useAuth";
 import { GAMES_BY_ID } from "../games/registry";
@@ -50,6 +51,15 @@ export default function GameHome() {
             Un compte est nécessaire pour jouer en ligne (avatar et pseudo visibles par
             l'adversaire).
           </p>
+        )}
+        {isFirebaseConfigured && (
+          <Link
+            to={user ? `/games/${gameId}/leaderboard` : "/login"}
+            className="flex items-center justify-center gap-1.5 text-sm text-amber-400 hover:text-amber-300 mt-1"
+          >
+            <Trophy className="w-4 h-4" />
+            Tableau des champions
+          </Link>
         )}
       </div>
     </div>

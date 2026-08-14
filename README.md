@@ -223,3 +223,27 @@ est déjà inclus, rien à faire de plus. En important le projet sur
 N'oublie pas de renseigner tes variables d'environnement (`VITE_FIREBASE_...`,
 `VITE_CLOUDINARY_...`) dans **Project Settings > Environment Variables** sur Vercel — le
 fichier `.env` local n'est jamais déployé.
+
+### Cadres de saison : fonction serverless `api/season-rollover.js`
+
+La distribution des cadres Diamant/Or/Bronze en fin de saison ne se fait plus en écriture
+Firestore directe depuis le client (n'importe qui pouvait sinon se l'auto-attribuer), mais
+via une fonction serverless Vercel qui utilise le **Firebase Admin SDK** — la seule voie
+autorisée à écrire le champ `frames` (voir `firestore.rules`). Elle est appelée :
+- à la demande, par le client au chargement du classement (comportement inchangé) ;
+- une fois par jour via le **Vercel Cron** défini dans `vercel.json` (gratuit sur le plan
+  Hobby), pour se rapprocher du changement de saison à minuit sans dépendre d'une visite.
+
+Pour que ça marche, il faut une clé de compte de service Firebase :
+
+1. Console Firebase > ⚙️ Paramètres du projet > **Comptes de service** > *Générer une
+   nouvelle clé privée* (télécharge un fichier `.json`).
+2. Encode-le en base64 :
+   ```bash
+   base64 -i chemin/vers/serviceAccountKey.json | tr -d '\n'
+   ```
+3. Colle le résultat dans **Project Settings > Environment Variables** sur Vercel, sous le
+   nom `FIREBASE_SERVICE_ACCOUNT` (ne jamais préfixer par `VITE_`, sinon Vite l'embarque
+   côté client — cette variable ne doit exister que côté serveur).
+
+⚠️ Ne commite jamais le fichier `.json` de la clé de service dans le dépôt.

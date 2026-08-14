@@ -18,11 +18,35 @@ service cloud.firestore {
 
     // Profils utilisateurs (pseudo + avatar) : lisibles par tous les joueurs
     // connectés (pour afficher l'avatar de l'adversaire), modifiables
-    // uniquement par leur propriétaire.
+    // uniquement par leur propriétaire — à une exception : le champ
+    // `frames` (cadres de saison Diamant/Or/Bronze) n'est modifiable par
+    // AUCUN client, même le propriétaire. Il n'est écrit que par le
+    // Firebase Admin SDK depuis /api/season-rollover.js (Vercel), qui
+    // bypasse ces règles, pour empêcher tout joueur de se l'auto-attribuer.
     match /users/{uid} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && request.auth.uid == uid;
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isSignedIn() && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['frames']);
       allow delete: if false;
+    }
+
+    // Classement mondial par jeu et par saison : lecture ouverte à tout
+    // joueur connecté, écriture limitée à sa propre entrée (empêche un
+    // joueur de créditer une victoire à quelqu'un d'autre).
+    match /leaderboardEntries/{entryId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.gameId in ['marelle', 'awale'];
+      allow delete: if false;
+    }
+
+    // Suivi de la dernière saison pour laquelle les cadres Diamant/Or/Bronze
+    // ont été distribués (voir ensureSeasonRollover) — donnée non sensible.
+    match /leaderboardMeta/{gameId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     match /rooms/{code} {

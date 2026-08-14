@@ -45,6 +45,10 @@ export async function updateUserProfile(uid, { displayName, avatarUrl }) {
   }
 }
 
+export async function equipFrame(uid, frameId) {
+  await setDoc(doc(db, USERS, uid), { equippedFrame: frameId }, { merge: true });
+}
+
 export function friendlyAuthError(code) {
   switch (code) {
     case "auth/email-already-in-use":

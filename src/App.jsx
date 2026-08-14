@@ -9,6 +9,7 @@ import Signup from "./pages/Signup";
 import Profile from "./pages/Profile";
 import GameOnlineLobby from "./pages/GameOnlineLobby";
 import GameOnlineRoom from "./pages/GameOnlineRoom";
+import Leaderboard from "./pages/Leaderboard";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/games/:gameId/online" element={<GameOnlineLobby />} />
             <Route path="/games/:gameId/online/:code" element={<GameOnlineRoom />} />
+            <Route path="/games/:gameId/leaderboard" element={<Leaderboard />} />
           </Route>
         </Routes>
       </BrowserRouter>

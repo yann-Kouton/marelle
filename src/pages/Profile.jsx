@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
 import BackLink from "../components/BackLink";
 import { useAuth } from "../hooks/useAuth";
-import { updateUserProfile, signOutUser } from "../firebase/auth";
+import { updateUserProfile, signOutUser, equipFrame } from "../firebase/auth";
 import { uploadAvatar, isCloudinaryConfigured } from "../firebase/cloudinary";
 import Avatar from "../components/Avatar";
+import { parseFrameId, TIERS } from "../components/Rank";
+import { GAMES_BY_ID } from "../games/registry";
 
 export default function Profile() {
   const { user, profile } = useAuth();
@@ -18,6 +20,20 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [equipping, setEquipping] = useState(null);
+
+  const frames = profile?.frames || [];
+  const equippedFrame = profile?.equippedFrame || null;
+  const equippedTier = equippedFrame ? TIERS[parseFrameId(equippedFrame)?.tier] : null;
+
+  async function handleEquip(frameId) {
+    setEquipping(frameId ?? "none");
+    try {
+      await equipFrame(user.uid, frameId);
+    } finally {
+      setEquipping(null);
+    }
+  }
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -63,7 +79,7 @@ export default function Profile() {
       <h1 className="text-2xl font-semibold text-stone-100">Ton profil</h1>
 
       <div className="flex flex-col items-center gap-3">
-        <Avatar url={avatarUrl} name={displayName} size={88} />
+        <Avatar url={avatarUrl} name={displayName} size={88} frame={equippedTier} />
         <input
           ref={fileRef}
           type="file"
@@ -107,6 +123,59 @@ export default function Profile() {
           {saved ? "Enregistré" : "Enregistrer"}
         </button>
       </form>
+
+      {frames.length > 0 && (
+        <div className="w-full max-w-xs flex flex-col gap-2">
+          <p className="text-xs text-stone-400">Mes cadres de saison</p>
+          <div className="flex flex-col gap-2">
+            {equippedFrame && (
+              <button
+                type="button"
+                onClick={() => handleEquip(null)}
+                disabled={equipping !== null}
+                className="flex items-center justify-between px-3 py-2 rounded-lg border border-stone-700 bg-stone-800/60 text-xs text-stone-400 hover:text-stone-200 disabled:opacity-50"
+              >
+                Retirer le cadre équipé
+                {equipping === "none" ? "…" : null}
+              </button>
+            )}
+            {frames.map((frameId) => {
+              const parsed = parseFrameId(frameId);
+              if (!parsed) return null;
+              const tier = TIERS[parsed.tier];
+              const gameLabel = GAMES_BY_ID[parsed.gameId]?.label || parsed.gameId;
+              const isEquipped = equippedFrame === frameId;
+              return (
+                <div
+                  key={frameId}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg border"
+                  style={{ borderColor: `${tier.glow}55`, background: `linear-gradient(90deg, ${tier.glow}14, transparent 60%)` }}
+                >
+                  <Avatar url={avatarUrl} name={displayName} size={32} frame={tier} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-stone-100 truncate">
+                      {gameLabel} · {tier.label}
+                    </p>
+                    <p className="text-[11px] text-stone-500">Saison {parsed.season}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleEquip(isEquipped ? null : frameId)}
+                    disabled={equipping !== null}
+                    className={`text-xs font-medium px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50 ${
+                      isEquipped
+                        ? "bg-emerald-700 text-white"
+                        : "bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700"
+                    }`}
+                  >
+                    {equipping === frameId ? "…" : isEquipped ? "Équipé" : "Équiper"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <button onClick={handleLogout} className="text-sm text-stone-500 hover:text-stone-300">
         Se déconnecter
