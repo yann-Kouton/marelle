@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { RotateCcw, Copy, Check } from "lucide-react";
 import Board from "../components/Board";
 import StatusBar from "../components/StatusBar";
 import Chat from "../components/Chat";
 import Avatar from "../components/Avatar";
 import VoiceCallBar from "../components/VoiceCallBar";
+import BackLink from "../components/BackLink";
 import { useAuth } from "../hooks/useAuth";
 import { useVoiceCall } from "../hooks/useVoiceCall";
 import {
@@ -130,13 +132,12 @@ export default function OnlineRoom() {
   return (
     <div className="min-h-screen flex flex-col items-center gap-6 px-6 py-8">
       <div className="w-full max-w-sm flex items-center justify-between">
-        <Link to="/" className="text-stone-500 text-sm hover:text-stone-300">
-          ← Quitter
-        </Link>
+        <BackLink to="/">Quitter</BackLink>
         <button
           onClick={copyCode}
-          className="text-xs bg-stone-800 hover:bg-stone-700 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-200 font-mono tracking-widest"
+          className="flex items-center gap-1.5 text-xs bg-stone-800 hover:bg-stone-700 border border-stone-700 rounded-lg px-3 py-1.5 text-stone-200 font-mono tracking-widest"
         >
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
           {copied ? "Copié !" : `Code : ${code}`}
         </button>
       </div>
@@ -175,13 +176,23 @@ export default function OnlineRoom() {
       />
 
       {room.game.winner && (
-        <button
-          onClick={handleRematch}
-          disabled={room.rematch?.[seat]}
-          className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-xl transition-colors"
-        >
-          {room.rematch?.[seat] ? "En attente de l'adversaire…" : "Demander une revanche"}
-        </button>
+        <div className="flex flex-col items-center gap-1.5">
+          {seat && (
+            <p className="text-sm text-stone-400">
+              {room.game.winner === seat
+                ? "Bien joué, tu as gagné !"
+                : "Pas cette fois — retente ta chance."}
+            </p>
+          )}
+          <button
+            onClick={handleRematch}
+            disabled={room.rematch?.[seat]}
+            className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-xl transition-colors"
+          >
+            <RotateCcw className="w-4 h-4" />
+            {room.rematch?.[seat] ? "En attente de l'adversaire…" : "Demander une revanche"}
+          </button>
+        </div>
       )}
 
       <div className="w-full max-w-sm">

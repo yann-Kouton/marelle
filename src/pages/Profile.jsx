@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { Check } from "lucide-react";
+import BackLink from "../components/BackLink";
 import { useAuth } from "../hooks/useAuth";
 import { updateUserProfile, signOutUser } from "../firebase/auth";
 import { uploadAvatar, isCloudinaryConfigured } from "../firebase/cloudinary";
@@ -57,9 +59,7 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6">
-      <Link to="/" className="text-stone-500 text-sm self-start hover:text-stone-300">
-        ← Retour
-      </Link>
+      <BackLink to="/" className="self-start" />
       <h1 className="text-2xl font-semibold text-stone-100">Ton profil</h1>
 
       <div className="flex flex-col items-center gap-3">
@@ -101,9 +101,10 @@ export default function Profile() {
         <button
           type="submit"
           disabled={saving}
-          className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl transition-colors"
+          className="flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium py-2.5 rounded-xl transition-colors"
         >
-          {saved ? "Enregistré ✓" : "Enregistrer"}
+          {saved && <Check className="w-4 h-4" />}
+          {saved ? "Enregistré" : "Enregistrer"}
         </button>
       </form>
 

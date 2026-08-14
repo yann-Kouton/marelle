@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { MessageCircle } from "lucide-react";
 import Avatar from "./Avatar";
 
 export default function Chat({ messages, onSend, myUid }) {
@@ -21,8 +22,9 @@ export default function Chat({ messages, onSend, myUid }) {
     <div className="flex flex-col h-72 bg-stone-900/60 border border-stone-700 rounded-xl overflow-hidden">
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
         {messages.length === 0 && (
-          <p className="text-xs text-stone-500 text-center mt-4">
-            Aucun message pour l'instant — dis bonjour 👋
+          <p className="flex items-center justify-center gap-1.5 text-xs text-stone-500 mt-4">
+            <MessageCircle className="w-3.5 h-3.5" />
+            Aucun message pour l'instant — dis bonjour
           </p>
         )}
         {messages.map((m) => (

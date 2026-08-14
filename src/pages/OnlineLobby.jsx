@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import BackLink from "../components/BackLink";
 import { createRoom, joinRoom } from "../firebase/rooms";
 import { useAuth } from "../hooks/useAuth";
 import Avatar from "../components/Avatar";
@@ -47,9 +48,7 @@ export default function OnlineLobby() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6">
-      <Link to="/" className="text-stone-500 text-sm self-start hover:text-stone-300">
-        ← Retour
-      </Link>
+      <BackLink to="/" className="self-start" />
 
       <div className="flex flex-col items-center gap-2">
         <Avatar url={profile?.avatarUrl} name={displayName} size={56} />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import BackLink from "../components/BackLink";
 import Board from "../components/Board";
 import StatusBar from "../components/StatusBar";
 import { createInitialState, getPlayableCells, playCell } from "../game/engine";
@@ -19,9 +19,7 @@ export default function Local() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6 py-10">
-      <Link to="/" className="text-stone-500 text-sm self-start hover:text-stone-300">
-        ← Retour
-      </Link>
+      <BackLink to="/" className="self-start" />
 
       <StatusBar state={state} />
 

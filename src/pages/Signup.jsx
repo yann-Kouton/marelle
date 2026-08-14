@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import BackLink from "../components/BackLink";
 import { signUp, friendlyAuthError } from "../firebase/auth";
 
 export default function Signup() {
@@ -27,9 +28,7 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6">
-      <Link to="/" className="text-stone-500 text-sm self-start hover:text-stone-300">
-        ← Retour
-      </Link>
+      <BackLink to="/" className="self-start" />
       <h1 className="text-2xl font-semibold text-stone-100">Créer un compte</h1>
 
       <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-3">

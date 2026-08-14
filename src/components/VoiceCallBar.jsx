@@ -1,3 +1,4 @@
+import { Phone, PhoneOff, Mic, MicOff, Loader2 } from "lucide-react";
 import { useIncomingCallFlag } from "../hooks/useVoiceCall";
 
 const LABELS = {
@@ -39,8 +40,9 @@ export default function VoiceCallBar({ code, mySeat, voice, opponentPresent }) {
             onClick={start}
             disabled={!opponentPresent}
             title={!opponentPresent ? "En attente d'un adversaire" : undefined}
-            className="text-sm bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white font-medium px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 text-sm bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white font-medium px-3 py-1.5 rounded-lg transition-colors"
           >
+            <Phone className="w-4 h-4" />
             {incoming ? "Répondre" : "Appeler"}
           </button>
         ) : (
@@ -48,15 +50,23 @@ export default function VoiceCallBar({ code, mySeat, voice, opponentPresent }) {
             {(status === "connected" || status === "connecting") && (
               <button
                 onClick={toggleMute}
-                className="text-sm bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 px-3 py-1.5 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 text-sm bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 px-3 py-1.5 rounded-lg transition-colors"
               >
+                {status === "connecting" ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : muted ? (
+                  <MicOff className="w-4 h-4" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
                 {muted ? "Réactiver" : "Couper"}
               </button>
             )}
             <button
               onClick={hangUp}
-              className="text-sm bg-red-800 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-sm bg-red-800 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg transition-colors"
             >
+              <PhoneOff className="w-4 h-4" />
               Raccrocher
             </button>
           </>

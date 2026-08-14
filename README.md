@@ -137,3 +137,17 @@ firebase init hosting   # dossier public = dist, SPA = oui
 npm run build
 firebase deploy
 ```
+
+### Déployer sur Vercel
+
+Le projet est une **SPA** (React Router gère les routes côté client, ex. `/online/ABCDE`) :
+sans configuration, Vercel renvoie une 404 sur ces routes car aucun fichier réel n'existe
+à ce chemin. Le fichier `vercel.json` à la racine du projet corrige ça en renvoyant
+toujours `index.html`, quelle que soit l'URL demandée — il est déjà inclus, rien à faire
+de plus. En important le projet sur [vercel.com](https://vercel.com), choisis le preset
+**Vite** ; le build (`npm run build`) et le dossier de sortie (`dist`) sont détectés
+automatiquement.
+
+N'oublie pas de renseigner tes variables d'environnement (`VITE_FIREBASE_...`,
+`VITE_CLOUDINARY_...`) dans **Project Settings > Environment Variables** sur Vercel — le
+fichier `.env` local n'est jamais déployé.
