@@ -141,7 +141,7 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
         type="button"
         onClick={() => onCellClick?.(i)}
         disabled={disabled || !isPlayable}
-        className={`relative w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem] rounded-full transition-transform
+        className={`relative w-full max-w-[3.25rem] sm:max-w-[4.5rem] aspect-square mx-auto rounded-full transition-transform
           ${isPlayable ? "hover:-translate-y-0.5 cursor-pointer" : "cursor-default"}
           ${isPlayable ? "active:translate-y-0" : ""}
           ${justLanded !== null ? "pit-pulse" : ""}
@@ -184,7 +184,7 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
       <StatusStrip turn={state.turn} winner={state.winner} />
 
       <div
-        className="flex items-stretch gap-2 sm:gap-3 p-3 sm:p-5 rounded-[1.75rem]"
+        className="flex items-stretch gap-1.5 sm:gap-3 p-2.5 sm:p-5 rounded-[1.75rem]"
         style={{
           background:
             "radial-gradient(140% 160% at 25% -10%, rgba(255,255,255,0.07), transparent 55%), repeating-linear-gradient(100deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 4px), linear-gradient(155deg, #8a5a34 0%, #6b4226 45%, #4a2d17 100%)",
@@ -195,13 +195,13 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
       >
         <Store player="P2" count={captured.P2} turn={state.turn} winner={state.winner} />
 
-        <div className="flex flex-col justify-between gap-2.5 sm:gap-3.5 py-1">
-          <div className="grid grid-cols-6 gap-2 sm:gap-3">{TOP_ORDER.map(renderPit)}</div>
+        <div className="flex flex-1 min-w-0 flex-col justify-between gap-2.5 sm:gap-3.5 py-1">
+          <div className="grid grid-cols-6 gap-1.5 sm:gap-3">{TOP_ORDER.map(renderPit)}</div>
           <div
             className="h-px w-full rounded-full"
             style={{ background: "linear-gradient(90deg, transparent, rgba(0,0,0,0.4) 15%, rgba(0,0,0,0.4) 85%, transparent)" }}
           />
-          <div className="grid grid-cols-6 gap-2 sm:gap-3">{BOTTOM_ORDER.map(renderPit)}</div>
+          <div className="grid grid-cols-6 gap-1.5 sm:gap-3">{BOTTOM_ORDER.map(renderPit)}</div>
         </div>
 
         <Store player="P1" count={captured.P1} turn={state.turn} winner={state.winner} />
@@ -226,7 +226,7 @@ function Store({ player, count, turn, winner }) {
   }, [count]);
 
   return (
-    <div className="flex flex-col items-center justify-between gap-2 w-14 sm:w-[4.75rem]">
+    <div className="flex flex-col items-center justify-between gap-2 w-12 sm:w-[4.75rem] shrink-0">
       <span
         className="w-1.5 h-1.5 rounded-full shrink-0"
         style={{ background: color, boxShadow: isActive ? `0 0 8px ${color}` : "none" }}
