@@ -72,3 +72,34 @@ h1, h2, h3 {
     animation: none !important;
   }
 }
+
+@keyframes dice-roll {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.08); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes dice-settle {
+  0% { transform: scale(1.25); }
+  60% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+@keyframes pawn-land {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+@keyframes capture-flash {
+  0% { transform: scale(0.4); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.dice-rolling { animation: dice-roll 0.16s linear infinite; }
+.dice-settle { animation: dice-settle 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.pawn-land { animation: pawn-land 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both; transform-box: fill-box; transform-origin: center; }
+.capture-flash { animation: capture-flash 0.55s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-rolling, .dice-settle, .pawn-land, .capture-flash {
+    animation: none !important;
+  }
+}

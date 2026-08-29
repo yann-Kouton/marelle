@@ -19,7 +19,7 @@ import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 const SEASON_EPOCH = { year: 2026, month: 8 }; // saison 1 = août 2026
-const VALID_GAME_IDS = ["marelle", "awale"];
+const VALID_GAME_IDS = ["marelle", "awale", "ludo"];
 
 function currentSeasonKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;

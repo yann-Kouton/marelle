@@ -39,7 +39,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn()
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.gameId in ['marelle', 'awale'];
+        && request.resource.data.gameId in ['marelle', 'awale', 'ludo'];
       allow delete: if false;
     }
 
@@ -59,7 +59,7 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.players.P1.uid == request.auth.uid
         && request.resource.data.players.P2 == null
-        && request.resource.data.gameId in ['marelle', 'awale'];
+        && request.resource.data.gameId in ['marelle', 'awale', 'ludo'];
 
       // Mise à jour : seuls les deux joueurs du salon peuvent écrire
       // (rejoindre en P2, jouer un coup, demander une revanche).

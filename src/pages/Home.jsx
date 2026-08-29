@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Grid3x3, Sprout, ChevronRight } from "lucide-react";
+import { Grid3x3, Sprout, ChevronRight, Dices } from "lucide-react";
 import { isFirebaseConfigured } from "../firebase/config";
 import { useAuth } from "../hooks/useAuth";
 import { GAMES } from "../games/registry";
@@ -8,6 +8,7 @@ import Avatar from "../components/Avatar";
 const ICONS = {
   marelle: Grid3x3,
   awale: Sprout,
+  ludo: Dices,
 };
 
 export default function Home() {

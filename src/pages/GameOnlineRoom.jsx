@@ -130,7 +130,8 @@ export default function GameOnlineRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.game?.winner, seat]);
 
-  const voice = useVoiceCall(code, seat);
+  const opponentPresent = Boolean(room?.players?.P2);
+  const voice = useVoiceCall(code, seat, opponentPresent);
 
   const handleCellClick = useCallback(
     (index) => {
@@ -221,7 +222,7 @@ export default function GameOnlineRoom() {
     P1: room.players.P1?.name || "Joueur 1",
     P2: room.players.P2?.name || "en attente…",
   };
-  const waitingForOpponent = !room.players.P2;
+  const waitingForOpponent = !opponentPresent;
   const playable = seat && room.game.turn === seat ? game.getPlayableCells(room.game) : [];
   const winner = room.game.winner;
 
@@ -257,7 +258,7 @@ export default function GameOnlineRoom() {
       </div>
 
       {!waitingForOpponent && (
-        <VoiceCallBar code={code} mySeat={seat} voice={voice} opponentPresent={!waitingForOpponent} />
+        <VoiceCallBar voice={voice} opponentPresent={opponentPresent} />
       )}
 
       {waitingForOpponent ? (

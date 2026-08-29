@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   doc,
   collection,
@@ -12,7 +12,7 @@ import {
 import { db } from "../firebase/config";
 
 // STUN publics uniquement (pas de TURN) : suffisant sur la plupart des
-// réseaux, mais un appel peut échouer derrière certains NAT/pare-feux
+// réseaux, mais la connexion peut échouer derrière certains NAT/pare-feux
 // d'entreprise stricts. Voir le README pour ajouter un serveur TURN.
 const ICE_SERVERS = {
   iceServers: [
@@ -21,24 +21,33 @@ const ICE_SERVERS = {
   ],
 };
 
-// P1 est toujours l'appelant, P2 toujours le répondeur : ça évite toute
-// négociation sur "qui commence" quand les deux cliquent en même temps.
-export function useVoiceCall(code, mySeat) {
-  const [status, setStatus] = useState("idle"); // idle | connecting | connected | ended | error
+// Plus d'appel / réponse : dès que les deux joueurs sont dans le salon
+// (`active` = true), on établit la connexion WebRTC en arrière-plan, micro
+// coupé par défaut. Le seul geste du joueur est d'activer/désactiver son
+// micro. P1 est toujours l'offreur, P2 toujours le répondeur : ça évite
+// toute négociation sur "qui commence".
+export function useVoiceCall(code, mySeat, active) {
+  const [status, setStatus] = useState("idle"); // idle | connecting | connected | error
   const [errorMessage, setErrorMessage] = useState("");
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true); // micro coupé tant qu'on ne l'active pas
 
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const unsubsRef = useRef([]);
   const statusRef = useRef("idle");
+  const mutedRef = useRef(true);
 
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
+  useEffect(() => {
+    mutedRef.current = muted;
+  }, [muted]);
 
-  const callDocRef = doc(db, "rooms", code, "voice", "call");
+  // Mémoïsé sur `code` uniquement : recréer la ref à chaque render ferait
+  // repartir l'effet de connexion en boucle.
+  const callDocRef = useMemo(() => doc(db, "rooms", code, "voice", "call"), [code]);
 
   const stopListeners = useCallback(() => {
     unsubsRef.current.forEach((u) => u());
@@ -70,138 +79,128 @@ export function useVoiceCall(code, mySeat) {
     }
   }, [callDocRef]);
 
-  const hangUp = useCallback(async () => {
-    teardownConnection();
-    await wipeSignaling();
-    setStatus("idle");
-  }, [teardownConnection, wipeSignaling]);
+  // Connexion/déconnexion pilotée uniquement par `active` (les deux joueurs
+  // présents ou non) : plus aucun bouton "appeler" / "raccrocher" à gérer.
+  useEffect(() => {
+    if (!active) {
+      teardownConnection();
+      setStatus("idle");
+      return undefined;
+    }
 
-  const start = useCallback(async () => {
+    let cancelled = false;
     setErrorMessage("");
     setStatus("connecting");
 
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setStatus("error");
-      setErrorMessage("Micro refusé ou indisponible. Autorise l'accès au micro pour appeler.");
-      return;
-    }
-    localStreamRef.current = stream;
-
-    const pc = new RTCPeerConnection(ICE_SERVERS);
-    pcRef.current = pc;
-    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
-
-    pc.ontrack = (e) => {
-      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = e.streams[0];
-    };
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "connected") setStatus("connected");
-      if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
-        if (statusRef.current === "connected") setStatus("ended");
-      }
-    };
-
-    const isCaller = mySeat === "P1";
-    const myCandidates = isCaller ? "callerCandidates" : "calleeCandidates";
-    const theirCandidates = isCaller ? "calleeCandidates" : "callerCandidates";
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        addDoc(collection(callDocRef, myCandidates), e.candidate.toJSON());
-      }
-    };
-
-    const unsubTheirCandidates = onSnapshot(
-      collection(callDocRef, theirCandidates),
-      (snap) => {
-        snap.docChanges().forEach((change) => {
-          if (change.type === "added" && pc.remoteDescription) {
-            pc.addIceCandidate(new RTCIceCandidate(change.doc.data())).catch(() => {});
-          }
-        });
-      }
-    );
-    unsubsRef.current.push(unsubTheirCandidates);
-
-    if (isCaller) {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await setDoc(
-        callDocRef,
-        { offer: { type: offer.type, sdp: offer.sdp } },
-        { merge: false }
-      );
-
-      const unsubDoc = onSnapshot(callDocRef, (snap) => {
-        const data = snap.data();
-        if (data?.answer && !pc.currentRemoteDescription) {
-          pc.setRemoteDescription(new RTCSessionDescription(data.answer)).catch(() => {});
+    (async () => {
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        if (!cancelled) {
+          setStatus("error");
+          setErrorMessage("Micro refusé ou indisponible. Autorise l'accès au micro pour discuter.");
         }
-        if (!snap.exists() && statusRef.current !== "idle") {
-          teardownConnection();
-          setStatus("ended");
+        return;
+      }
+      if (cancelled) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      // On applique tout de suite l'état muet courant (micro coupé par défaut).
+      stream.getAudioTracks().forEach((t) => (t.enabled = !mutedRef.current));
+      localStreamRef.current = stream;
+
+      const pc = new RTCPeerConnection(ICE_SERVERS);
+      pcRef.current = pc;
+      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+
+      pc.ontrack = (e) => {
+        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = e.streams[0];
+      };
+      pc.onconnectionstatechange = () => {
+        if (cancelled) return;
+        if (pc.connectionState === "connected") setStatus("connected");
+        if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
+          // On repasse en "connecting" plutôt qu'en erreur définitive : si
+          // l'adversaire revient, `active` redeviendra true et on retentera.
+          if (statusRef.current === "connected") setStatus("connecting");
         }
-      });
-      unsubsRef.current.push(unsubDoc);
-    } else {
-      const unsubDoc = onSnapshot(callDocRef, async (snap) => {
-        const data = snap.data();
-        if (data?.offer && !pc.currentRemoteDescription) {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          await updateDoc(callDocRef, {
-            answer: { type: answer.type, sdp: answer.sdp },
+      };
+
+      const isCaller = mySeat === "P1";
+      const myCandidates = isCaller ? "callerCandidates" : "calleeCandidates";
+      const theirCandidates = isCaller ? "calleeCandidates" : "callerCandidates";
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          addDoc(collection(callDocRef, myCandidates), e.candidate.toJSON());
+        }
+      };
+
+      const unsubTheirCandidates = onSnapshot(
+        collection(callDocRef, theirCandidates),
+        (snap) => {
+          snap.docChanges().forEach((change) => {
+            if (change.type === "added" && pc.remoteDescription) {
+              pc.addIceCandidate(new RTCIceCandidate(change.doc.data())).catch(() => {});
+            }
           });
         }
-        if (!snap.exists() && statusRef.current !== "idle") {
-          teardownConnection();
-          setStatus("ended");
-        }
-      });
-      unsubsRef.current.push(unsubDoc);
-    }
-  }, [callDocRef, mySeat, teardownConnection]);
+      );
+      unsubsRef.current.push(unsubTheirCandidates);
+
+      if (isCaller) {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await setDoc(
+          callDocRef,
+          { offer: { type: offer.type, sdp: offer.sdp } },
+          { merge: false }
+        );
+
+        const unsubDoc = onSnapshot(callDocRef, (snap) => {
+          const data = snap.data();
+          if (data?.answer && !pc.currentRemoteDescription) {
+            pc.setRemoteDescription(new RTCSessionDescription(data.answer)).catch(() => {});
+          }
+        });
+        unsubsRef.current.push(unsubDoc);
+      } else {
+        const unsubDoc = onSnapshot(callDocRef, async (snap) => {
+          const data = snap.data();
+          if (data?.offer && !pc.currentRemoteDescription) {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await updateDoc(callDocRef, {
+              answer: { type: answer.type, sdp: answer.sdp },
+            });
+          }
+        });
+        unsubsRef.current.push(unsubDoc);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      teardownConnection();
+      // Un seul côté nettoie les documents de signalisation pour éviter
+      // que les deux joueurs ne se marchent dessus au même instant.
+      if (mySeat === "P1") wipeSignaling();
+    };
+  }, [active, code, mySeat, callDocRef, teardownConnection, wipeSignaling]);
 
   const toggleMute = useCallback(() => {
-    if (!localStreamRef.current) return;
-    const next = !muted;
-    localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = !next));
-    setMuted(next);
-  }, [muted]);
-
-  // Si l'autre joueur raccroche (le doc de signalisation disparaît) pendant
-  // qu'on est encore en idle, rien à faire ici — c'est start()/onSnapshot(callDocRef)
-  // qui gère la fin d'appel une fois la connexion établie.
-
-  useEffect(() => {
-    return () => {
-      teardownConnection();
-      if (statusRef.current !== "idle") wipeSignaling();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setMuted((prev) => {
+      const next = !prev;
+      if (localStreamRef.current) {
+        localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = !next));
+      }
+      return next;
+    });
   }, []);
 
-  return { status, errorMessage, muted, start, hangUp, toggleMute, remoteAudioRef };
-}
-
-// Permet d'afficher un bandeau "appel entrant" côté P2 sans démarrer le micro
-// tant que le joueur n'a pas cliqué pour répondre.
-export function useIncomingCallFlag(code, mySeat, active) {
-  const [incoming, setIncoming] = useState(false);
-  useEffect(() => {
-    if (mySeat !== "P2" || !active) {
-      setIncoming(false);
-      return undefined;
-    }
-    const callDocRef = doc(db, "rooms", code, "voice", "call");
-    const unsub = onSnapshot(callDocRef, (snap) => {
-      setIncoming(Boolean(snap.exists() && snap.data()?.offer && !snap.data()?.answer));
-    });
-    return unsub;
-  }, [code, mySeat, active]);
-  return incoming;
+  return { status, errorMessage, muted, toggleMute, remoteAudioRef };
 }
