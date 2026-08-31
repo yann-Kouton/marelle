@@ -1,4 +1,4 @@
-// Moteur du jeu du Ludo (Petits Chevaux), version 2 joueurs.
+// Moteur du jeu du Ludo (Petits Chevaux), 2 à 4 joueurs.
 //
 // Position d'un pion, un entier :
 //   -1        : dans le nid (pas encore sorti)
@@ -14,36 +14,51 @@
 // embouteillage), et il n'y a pas de règle des "trois 6 d'affilée" — un 6
 // rejoue toujours. Le reste (cases sûres, capture qui fait aussi rejouer,
 // sortie sur 6, entrée exacte dans le couloir) suit les règles classiques.
+// La partie s'arrête dès qu'un joueur a rentré ses 4 pions (pas de classement
+// pour les places suivantes).
 
 export const RING_LENGTH = 52;
 export const HOME_STRETCH_START = 51; // 1re case du couloir final (relatif)
 export const FINISH = 56; // position relative d'arrivée
 export const PAWNS_PER_PLAYER = 4;
 
-// Cases de départ de chaque couleur sur l'anneau commun (diagonalement
-// opposées pour un parcours symétrique et équitable à 2 joueurs).
-export const START = { P1: 0, P2: 26 };
+// Les 4 sièges possibles, dans l'ordre de jeu par défaut. À 2 ou 3 joueurs,
+// on utilise un sous-ensemble (les 2/3 premiers), toujours dans cet ordre.
+export const ALL_PLAYERS = ["P1", "P2", "P3", "P4"];
+
+// Cases de départ de chaque couleur sur l'anneau commun (0, 13, 26, 39 :
+// espacées régulièrement sur les 52 cases, un quart de tour à chaque fois).
+export const START = { P1: 0, P2: 26, P3: 13, P4: 39 };
 
 // Cases sûres classiques (départs + étoiles), aucune capture n'y a lieu.
 export const SAFE_CELLS = [0, 8, 13, 21, 26, 34, 39, 47];
 
-function otherPlayer(player) {
-  return player === "P1" ? "P2" : "P1";
-}
-
-export function createInitialState(firstPlayer = "P1") {
+export function createInitialState(numPlayers = 2, firstPlayer = "P1") {
+  const players = ALL_PLAYERS.slice(0, Math.max(2, Math.min(4, numPlayers)));
+  const positions = {};
+  players.forEach((p) => {
+    positions[p] = [-1, -1, -1, -1];
+  });
   return {
-    positions: { P1: [-1, -1, -1, -1], P2: [-1, -1, -1, -1] },
-    turn: firstPlayer,
+    players,
+    positions,
+    turn: players.includes(firstPlayer) ? firstPlayer : players[0],
     winner: null,
     dice: null,
     mustRoll: true,
-    lastMove: null, // { type: "roll"|"move", dice, pawn, from, to, captured } pour l'UI
+    lastMove: null, // { type: "roll"|"move", dice, pawn, from, to, capturedIndices } pour l'UI
   };
 }
 
+// Prochain joueur dans l'ordre du tour (cycle sur state.players).
+function nextPlayer(state, from = state.turn) {
+  const players = state.players || ALL_PLAYERS.slice(0, 2);
+  const idx = players.indexOf(from);
+  return players[(idx + 1) % players.length];
+}
+
 // Une case de l'anneau (0..50, PAS 51..56) exprimée en position globale
-// (0..51), pour savoir si elle est sûre / occupée par l'adversaire.
+// (0..51), pour savoir si elle est sûre / occupée par un adversaire.
 function globalCell(player, relPos) {
   if (relPos < 0 || relPos > 50) return null;
   return (START[player] + relPos) % RING_LENGTH;
@@ -62,25 +77,29 @@ function movablePawns(state, player, dice) {
     .filter((i) => canMove(state.positions[player][i], dice));
 }
 
-// Envoie au nid tout pion adverse présent sur la case globale visée (sauf
-// case sûre). Retourne les index des pions capturés (pour l'UI).
-function applyCapture(positions, player, landedGlobalCell) {
+// Envoie au nid tout pion adverse (toutes couleurs confondues) présent sur
+// la case globale visée (sauf case sûre). Retourne les pions capturés (pour
+// l'UI) sous la forme [{ player, index }, ...].
+function applyCapture(state, positions, player, landedGlobalCell) {
   if (landedGlobalCell === null || SAFE_CELLS.includes(landedGlobalCell)) {
     return { positions, capturedIndices: [] };
   }
-  const opponent = otherPlayer(player);
+  let nextPositions = positions;
   const capturedIndices = [];
-  const newOpponentPawns = positions[opponent].map((pawn, i) => {
-    if (pawn >= 0 && pawn <= 50 && globalCell(opponent, pawn) === landedGlobalCell) {
-      capturedIndices.push(i);
-      return -1;
-    }
-    return pawn;
+  state.players.forEach((opponent) => {
+    if (opponent === player) return;
+    let changed = false;
+    const newPawns = nextPositions[opponent].map((pawn, i) => {
+      if (pawn >= 0 && pawn <= 50 && globalCell(opponent, pawn) === landedGlobalCell) {
+        changed = true;
+        capturedIndices.push({ player: opponent, index: i });
+        return -1;
+      }
+      return pawn;
+    });
+    if (changed) nextPositions = { ...nextPositions, [opponent]: newPawns };
   });
-  return {
-    positions: { ...positions, [opponent]: newOpponentPawns },
-    capturedIndices,
-  };
+  return { positions: nextPositions, capturedIndices };
 }
 
 function hasWon(positions, player) {
@@ -111,7 +130,7 @@ export function applyMove(state, payload) {
         ...state,
         dice,
         mustRoll: true,
-        turn: dice === 6 ? player : otherPlayer(player),
+        turn: dice === 6 ? player : nextPlayer(state),
         lastMove: { type: "roll", dice, player, noMove: true },
       };
     }
@@ -136,7 +155,7 @@ export function applyMove(state, payload) {
     ...state.positions,
     [player]: state.positions[player].map((p, i) => (i === payload ? to : p)),
   };
-  const { positions, capturedIndices } = applyCapture(withPawnMoved, player, landedGlobal);
+  const { positions, capturedIndices } = applyCapture(state, withPawnMoved, player, landedGlobal);
 
   const won = hasWon(positions, player);
   const playsAgain = dice === 6 || capturedIndices.length > 0;
@@ -147,7 +166,7 @@ export function applyMove(state, payload) {
     winner: won ? player : null,
     dice: null,
     mustRoll: true,
-    turn: won || playsAgain ? player : otherPlayer(player),
+    turn: won || playsAgain ? player : nextPlayer(state),
     lastMove: { type: "move", dice, player, pawn: payload, from, to, capturedIndices },
   };
 }

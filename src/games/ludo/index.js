@@ -12,7 +12,8 @@ export const ludoGame = {
     "d'autant de cases que le dé l'indique, capture un pion adverse en te posant sur sa case " +
     "(sauf case sûre), et ramène tes 4 pions à la maison avec un chiffre exact pour gagner.",
   minPlayers: 2,
-  maxPlayers: 2,
+  maxPlayers: 4,
+  playerColorLabels: { P1: "Vert", P2: "Bleu", P3: "Jaune", P4: "Rouge" },
   createInitialState: engine.createInitialState,
   applyMove: engine.applyMove,
   getPlayableCells: engine.getPlayableCells,

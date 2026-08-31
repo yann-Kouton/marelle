@@ -1,6 +1,8 @@
 import { Trophy } from "lucide-react";
 
-export default function StatusBar({ state, names = { P1: "Joueur 1", P2: "Joueur 2" }, youAre = null }) {
+const DEFAULT_NAMES = { P1: "Joueur 1", P2: "Joueur 2", P3: "Joueur 3", P4: "Joueur 4" };
+
+export default function StatusBar({ state, names = DEFAULT_NAMES, youAre = null }) {
   const { turn, winner, dice, mustRoll, lastMove } = state;
 
   let message;

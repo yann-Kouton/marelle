@@ -14,6 +14,8 @@ export default function GameOnlineLobby() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const variablePlayers = Boolean(game) && game.minPlayers !== game.maxPlayers;
+  const [numPlayers, setNumPlayers] = useState(game?.minPlayers ?? 2);
 
   if (!game) return <Navigate to="/" replace />;
 
@@ -24,7 +26,7 @@ export default function GameOnlineLobby() {
     setError("");
     setLoading(true);
     try {
-      const { code: roomCode } = await createRoom(gameId, user, profile);
+      const { code: roomCode } = await createRoom(gameId, user, profile, numPlayers);
       navigate(`/games/${gameId}/online/${roomCode}`);
     } catch (err) {
       setError("Impossible de créer le salon. Réessaie.");
@@ -79,6 +81,36 @@ export default function GameOnlineLobby() {
       <h1 className="text-2xl font-semibold text-stone-100">{game.label} en ligne</h1>
 
       <div className="w-full max-w-xs flex flex-col gap-4">
+        {variablePlayers && (
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-xs text-stone-500">Nombre de joueurs du salon</p>
+            <div className="flex items-center gap-2">
+              {Array.from(
+                { length: game.maxPlayers - game.minPlayers + 1 },
+                (_, i) => game.minPlayers + i
+              ).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setNumPlayers(n)}
+                  className={`w-11 h-11 rounded-xl text-lg font-semibold border transition-colors ${
+                    numPlayers === n
+                      ? "bg-emerald-700 border-emerald-600 text-white"
+                      : "bg-stone-800 border-stone-700 text-stone-300 hover:bg-stone-700"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            {numPlayers > 2 && (
+              <p className="text-[11px] text-stone-600 text-center max-w-[15rem]">
+                L'appel vocal est réservé aux salons à 2 joueurs.
+              </p>
+            )}
+          </div>
+        )}
+
         <form onSubmit={handleCreate} className="flex flex-col gap-2">
           <button
             type="submit"

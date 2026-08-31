@@ -21,6 +21,8 @@ import {
   applyRematch,
 } from "../firebase/rooms";
 
+const SEATS = ["P1", "P2", "P3", "P4"];
+
 export default function GameOnlineRoom() {
   const { gameId, code } = useParams();
   const game = GAMES_BY_ID[gameId];
@@ -33,6 +35,11 @@ export default function GameOnlineRoom() {
   const [arrivalQueue, setArrivalQueue] = useState([]);
   const prevPlayersRef = useRef(null);
   const prevWinnerRef = useRef(null);
+
+  // Sièges réellement utilisés par ce salon (2 à 4 selon le jeu / le choix
+  // fait à la création). Avant que `room` soit chargé, on suppose 2 (jeux à
+  // nombre de joueurs fixe, cas le plus courant) pour l'affichage initial.
+  const seats = SEATS.slice(0, room?.numPlayers || 2);
 
   // Classement mondial du jeu (Top 10), pour styliser les avatars/pseudos
   // et détecter l'arrivée d'un joueur Diamant/Or/Bronze dans le salon.
@@ -82,25 +89,24 @@ export default function GameOnlineRoom() {
     };
   }, [code]);
 
-  const seat =
-    room && user
-      ? room.players.P1?.uid === user.uid
-        ? "P1"
-        : room.players.P2?.uid === user.uid
-        ? "P2"
-        : null
-      : null;
+  const seat = room && user ? seats.find((s) => room.players[s]?.uid === user.uid) || null : null;
 
   // Annonce l'arrivée d'un joueur Diamant/Or/Bronze quand son siège passe de
   // vide à occupé (rejoint la partie ou reprend sa place après reconnexion).
   useEffect(() => {
     if (!room || top10.length === 0) {
-      if (room) prevPlayersRef.current = { P1: room.players.P1, P2: room.players.P2 };
+      if (room) {
+        const snapshot = {};
+        seats.forEach((s) => {
+          snapshot[s] = room.players[s];
+        });
+        prevPlayersRef.current = snapshot;
+      }
       return;
     }
     const prev = prevPlayersRef.current;
     if (prev) {
-      ["P1", "P2"].forEach((seatKey) => {
+      seats.forEach((seatKey) => {
         const wasEmpty = !prev[seatKey];
         const nowPlayer = room.players[seatKey];
         if (wasEmpty && nowPlayer) {
@@ -111,7 +117,11 @@ export default function GameOnlineRoom() {
         }
       });
     }
-    prevPlayersRef.current = { P1: room.players.P1, P2: room.players.P2 };
+    const snapshot = {};
+    seats.forEach((s) => {
+      snapshot[s] = room.players[s];
+    });
+    prevPlayersRef.current = snapshot;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room, top10]);
 
@@ -130,8 +140,12 @@ export default function GameOnlineRoom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.game?.winner, seat]);
 
-  const opponentPresent = Boolean(room?.players?.P2);
-  const voice = useVoiceCall(code, seat, opponentPresent);
+  const allSeatsFilled = room ? seats.every((s) => room.players[s]) : false;
+  // L'appel vocal (1 à 1) n'est proposé que pour les salons à 2 joueurs — le
+  // généraliser à une conférence à plusieurs demanderait de refaire la
+  // logique WebRTC (un seul appelant/répondant pour l'instant).
+  const isTwoPlayerRoom = (room?.numPlayers || 2) === 2;
+  const voice = useVoiceCall(code, seat, isTwoPlayerRoom && allSeatsFilled);
 
   const handleCellClick = useCallback(
     (index) => {
@@ -162,12 +176,15 @@ export default function GameOnlineRoom() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  // Dès que les deux joueurs ont demandé la revanche, on relance la partie.
+  // Dès que tous les joueurs du salon ont demandé la revanche, on relance.
   useEffect(() => {
-    if (room?.rematch?.P1 && room?.rematch?.P2) {
-      const nextFirst = room.game.winner === "P1" ? "P2" : "P1";
-      applyRematch(code, gameId, nextFirst);
-    }
+    if (!room || seats.length === 0) return;
+    const everyoneReady = seats.every((s) => room.rematch?.[s]);
+    if (!everyoneReady) return;
+    const idx = seats.indexOf(room.game.winner);
+    const nextFirst = idx === -1 ? seats[0] : seats[(idx + 1) % seats.length];
+    applyRematch(code, gameId, nextFirst, room.numPlayers || 2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.rematch, code, gameId, room?.game.winner]);
 
   if (!game) {
@@ -218,11 +235,12 @@ export default function GameOnlineRoom() {
   }
 
   const { BoardComponent, StatusBarComponent } = game;
-  const names = {
-    P1: room.players.P1?.name || "Joueur 1",
-    P2: room.players.P2?.name || "en attente…",
-  };
-  const waitingForOpponent = !opponentPresent;
+  const names = {};
+  seats.forEach((s, i) => {
+    names[s] = room.players[s]?.name || (i === 0 ? "Joueur 1" : "en attente…");
+  });
+  const waitingForPlayers = !allSeatsFilled;
+  const missingCount = seats.filter((s) => !room.players[s]).length;
   const playable = seat && room.game.turn === seat ? game.getPlayableCells(room.game) : [];
   const winner = room.game.winner;
 
@@ -245,25 +263,28 @@ export default function GameOnlineRoom() {
         </button>
       </div>
 
-      <div className="w-full max-w-sm flex items-center justify-between px-2">
-        <div className="flex items-center gap-2">
-          <Avatar url={room.players.P1?.avatarUrl} name={names.P1} size={36} frame={frameFor(room.players.P1)} />
-          <RankedName name={names.P1} tier={tierFor(room.players.P1?.uid)} className="text-sm text-stone-300" />
-        </div>
-        <span className="text-stone-600 text-xs">vs</span>
-        <div className="flex items-center gap-2">
-          <RankedName name={names.P2} tier={tierFor(room.players.P2?.uid)} className="text-sm text-stone-300" />
-          <Avatar url={room.players.P2?.avatarUrl} name={names.P2} size={36} frame={frameFor(room.players.P2)} />
-        </div>
+      <div className="w-full max-w-sm flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-2">
+        {seats.map((s, i) => (
+          <div key={s} className="flex items-center gap-4">
+            <div
+              className={`flex items-center gap-2 rounded-full px-1.5 py-1 ${
+                !waitingForPlayers && !winner && room.game.turn === s ? "ring-2 ring-emerald-600" : ""
+              }`}
+            >
+              <Avatar url={room.players[s]?.avatarUrl} name={names[s]} size={36} frame={frameFor(room.players[s])} />
+              <RankedName name={names[s]} tier={tierFor(room.players[s]?.uid)} className="text-sm text-stone-300" />
+            </div>
+            {i < seats.length - 1 && <span className="text-stone-600 text-xs">vs</span>}
+          </div>
+        ))}
       </div>
 
-      {!waitingForOpponent && (
-        <VoiceCallBar voice={voice} opponentPresent={opponentPresent} />
-      )}
+      {isTwoPlayerRoom && !waitingForPlayers && <VoiceCallBar voice={voice} opponentPresent={allSeatsFilled} />}
 
-      {waitingForOpponent ? (
-        <p className="text-stone-400 text-sm">
-          En attente d'un adversaire… partage le code du salon pour l'inviter.
+      {waitingForPlayers ? (
+        <p className="text-stone-400 text-sm text-center">
+          En attente de {missingCount > 1 ? `${missingCount} joueurs` : "1 joueur"}… partage le code du salon pour
+          inviter.
         </p>
       ) : (
         <StatusBarComponent state={room.game} names={names} youAre={seat} />
@@ -273,7 +294,7 @@ export default function GameOnlineRoom() {
         state={room.game}
         playable={playable}
         onCellClick={handleCellClick}
-        disabled={waitingForOpponent || room.game.turn !== seat}
+        disabled={waitingForPlayers || room.game.turn !== seat}
       />
 
       {winner && (
@@ -285,7 +306,7 @@ export default function GameOnlineRoom() {
             className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-xl transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
-            {room.rematch?.[seat] ? "En attente de l'adversaire…" : "Demander une revanche"}
+            {room.rematch?.[seat] ? "En attente des autres joueurs…" : "Demander une revanche"}
           </button>
         </div>
       )}

@@ -39,12 +39,12 @@ const GREEN = "#16a34a";
 const YELLOW = "#eab308";
 const BLUE = "#2563eb";
 
-// P1 = vert (haut-gauche), P2 = bleu (bas-droite) — diagonalement opposés,
-// comme leurs cases de départ (0 et 26) sur l'anneau. Rouge et jaune ne sont
-// pas joués à 2 joueurs, mais restent dessinés : un vrai plateau garde ses
-// 4 quartiers quel que soit le nombre de joueurs.
-const COLORS = { P1: GREEN, P2: BLUE };
-const DECOR = { yellow: YELLOW, red: RED };
+// P1 = vert (haut-gauche), P2 = bleu (bas-droite), P3 = jaune (haut-droite),
+// P4 = rouge (bas-gauche) — quatre quartiers du plateau, dans l'ordre du
+// tour à 2, 3 ou 4 joueurs (voir START dans engine.js pour les cases de
+// départ correspondantes). Un vrai plateau garde toujours ses 4 quartiers
+// dessinés, même si moins de 4 couleurs sont réellement jouées.
+const COLORS = { P1: GREEN, P2: BLUE, P3: YELLOW, P4: RED };
 
 // Couloirs finaux (5 cases avant le centre), dérivés géométriquement de la
 // case de départ de chaque couleur — voir engine.js pour la correspondance
@@ -52,13 +52,15 @@ const DECOR = { yellow: YELLOW, red: RED };
 const HOME_LANES = {
   P1: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5]],
   P2: [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9]],
-};
-const DECOR_LANES = {
-  yellow: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7]],
-  red: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7]],
+  P3: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7]],
+  P4: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7]],
 };
 
-const YARD_ORIGIN = { P1: [0, 0], P2: [9, 9] };
+const YARD_ORIGIN = { P1: [0, 0], P2: [9, 9], P3: [0, 9], P4: [9, 0] };
+
+// Direction (dr, dc) vers laquelle un pion arrivé se décale légèrement au
+// centre, vers le quartier de sa propre couleur.
+const FINISH_DIR = { P1: [1, -1], P2: [-1, 1], P3: [1, 1], P4: [-1, -1] };
 
 function yardSlot(originRow, originCol, slot) {
   const dr = slot < 2 ? 1.8 : 4.2;
@@ -76,9 +78,11 @@ function pawnCell(player, pawn, slot) {
     return cellCenter(yardSlot(row, col, slot));
   }
   if (pawn === FINISH) {
-    // Léger décalage pour ne pas empiler exactement les pions arrivés.
-    const offset = (slot - 1.5) * 0.35;
-    return { cx: 7.5 + offset, cy: 7.5 + offset * (player === "P1" ? 1 : -1) };
+    // Léger décalage pour ne pas empiler exactement les pions arrivés,
+    // dans le quart de cercle propre à chaque couleur (vers son propre nid).
+    const spread = (slot - 1.5) * 0.22;
+    const [dr, dc] = FINISH_DIR[player];
+    return { cx: 7.5 + dc * 0.55 + spread * dr, cy: 7.5 + dr * 0.55 + spread * dc };
   }
   if (pawn >= HOME_STRETCH_START) {
     return cellCenter(HOME_LANES[player][pawn - HOME_STRETCH_START]);
@@ -86,9 +90,9 @@ function pawnCell(player, pawn, slot) {
   return cellCenter(PATH[(START[player] + pawn) % 52]);
 }
 
-function Yard({ originRow, originCol, color }) {
+function Yard({ originRow, originCol, color, dimmed = false }) {
   return (
-    <g>
+    <g opacity={dimmed ? 0.35 : 1}>
       <rect x={originCol} y={originRow} width={6} height={6} rx={0.5} fill={color} />
       <rect x={originCol + 1} y={originRow + 1} width={4} height={4} rx={0.4} fill="#f1e9d8" />
       {[0, 1, 2, 3].map((slot) => {
@@ -146,6 +150,7 @@ const PAWN_TRANSITION = { transition: "cx 0.22s cubic-bezier(0.4, 0, 0.2, 1), cy
 
 export default function Board({ state, playable = [], onCellClick, disabled = false }) {
   const { positions, turn, dice, mustRoll, winner, lastMove } = state;
+  const players = state.players || Object.keys(positions);
 
   // --- Animation du dé : on "roule" localement quelques centaines de ms
   // avant de révéler la vraie valeur reçue via l'état (autoritaire, vient
@@ -247,13 +252,23 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-md mx-auto">
       <svg viewBox="0 0 15 15" className="w-full rounded-2xl" style={{ background: "#f1e9d8", boxShadow: "0 20px 45px -16px rgba(0,0,0,0.55)" }}>
-        {/* Zones (nids) des 4 couleurs — rouge/jaune décoratifs (non joués à 2). */}
-        <Yard originRow={0} originCol={0} color={GREEN} />
-        <Yard originRow={0} originCol={9} color={DECOR.yellow} />
-        <Yard originRow={9} originCol={0} color={DECOR.red} />
-        <Yard originRow={9} originCol={9} color={BLUE} />
+        {/* Zones (nids) des 4 couleurs — celles non jouées à ce nombre de
+            joueurs restent dessinées en grisé (un vrai plateau garde ses 4
+            quartiers), pour ne pas dérouter les habitués du jeu physique. */}
+        {["P1", "P3", "P4", "P2"].map((p) => {
+          const [originRow, originCol] = YARD_ORIGIN[p];
+          return (
+            <Yard
+              key={p}
+              originRow={originRow}
+              originCol={originCol}
+              color={COLORS[p]}
+              dimmed={!players.includes(p)}
+            />
+          );
+        })}
 
-        {/* Couloirs finaux colorés */}
+        {/* Couloirs finaux colorés (grisés pour les couleurs non jouées) */}
         {Object.entries(HOME_LANES).map(([player, cells]) =>
           cells.map(([row, col], i) => (
             <rect
@@ -263,28 +278,16 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
               width={0.88}
               height={0.88}
               fill={COLORS[player]}
-              opacity={0.28}
-            />
-          ))
-        )}
-        {Object.entries(DECOR_LANES).map(([name, cells]) =>
-          cells.map(([row, col], i) => (
-            <rect
-              key={`${name}-lane-${i}`}
-              x={col + 0.06}
-              y={row + 0.06}
-              width={0.88}
-              height={0.88}
-              fill={DECOR[name]}
-              opacity={0.28}
+              opacity={players.includes(player) ? 0.28 : 0.08}
             />
           ))
         )}
 
         {/* Anneau des 52 cases */}
         {PATH.map(([row, col], i) => {
-          const startColor =
-            i === START.P1 ? GREEN : i === START.P2 ? BLUE : i === 13 ? DECOR.yellow : i === 39 ? DECOR.red : null;
+          const startPlayer = Object.entries(START).find(([, s]) => s === i)?.[0];
+          const startColor = startPlayer ? COLORS[startPlayer] : null;
+          const startDimmed = startPlayer && !players.includes(startPlayer);
           const isSafe = SAFE_CELLS.includes(i);
           return (
             <g key={i}>
@@ -294,7 +297,13 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
                 width={0.9}
                 height={0.9}
                 rx={0.12}
-                fill={startColor ? `${startColor}55` : isSafe ? "#fbbf2440" : "#ffffff"}
+                fill={
+                  startColor
+                    ? `${startColor}${startDimmed ? "22" : "55"}`
+                    : isSafe
+                    ? "#fbbf2440"
+                    : "#ffffff"
+                }
                 stroke="#00000022"
                 strokeWidth={0.03}
               />
@@ -308,10 +317,10 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
         })}
 
         {/* Centre : pinwheel des 4 couleurs */}
-        <polygon points="6,6 6,9 7.5,7.5" fill={GREEN} />
-        <polygon points="6,6 9,6 7.5,7.5" fill={DECOR.yellow} />
-        <polygon points="9,6 9,9 7.5,7.5" fill={BLUE} />
-        <polygon points="6,9 9,9 7.5,7.5" fill={DECOR.red} />
+        <polygon points="6,6 6,9 7.5,7.5" fill={COLORS.P1} opacity={players.includes("P1") ? 1 : 0.3} />
+        <polygon points="6,6 9,6 7.5,7.5" fill={COLORS.P3} opacity={players.includes("P3") ? 1 : 0.3} />
+        <polygon points="9,6 9,9 7.5,7.5" fill={COLORS.P2} opacity={players.includes("P2") ? 1 : 0.3} />
+        <polygon points="6,9 9,9 7.5,7.5" fill={COLORS.P4} opacity={players.includes("P4") ? 1 : 0.3} />
 
         {/* Flash de capture */}
         {captureFlash && (
@@ -328,7 +337,7 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
         )}
 
         {/* Pions */}
-        {["P1", "P2"].map((player) =>
+        {players.map((player) =>
           positions[player].map((pawn, i) => {
             const key = `${player}-${i}`;
             const shownPos = stepPawn?.key === key ? stepPawn.pos : pawn;
