@@ -211,8 +211,8 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
           }}
         />
 
-        <div
-          className="relative overflow-hidden flex w-full items-stretch gap-1.5 sm:gap-4 p-2 sm:p-6 rounded-[1.75rem]"
+                <div
+          className="relative overflow-hidden flex w-full items-stretch gap-1.5 sm:gap-4 px-2 pt-2 pb-6 sm:px-6 sm:pt-6 sm:pb-9 rounded-[1.75rem]"
           style={{
             background:
               "radial-gradient(140% 160% at 25% -10%, rgba(255,255,255,0.07), transparent 55%), repeating-linear-gradient(100deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 4px), linear-gradient(155deg, #8a5a34 0%, #6b4226 45%, #4a2d17 100%)",
