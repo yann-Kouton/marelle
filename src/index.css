@@ -103,3 +103,37 @@ h1, h2, h3 {
     animation: none !important;
   }
 }
+
+/* --- Ambiance "magique" du plateau d'Awalé --- */
+@keyframes board-aura-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.035); }
+}
+@keyframes board-shimmer-sweep {
+  0% { background-position: -160% 0; }
+  100% { background-position: 260% 0; }
+}
+@keyframes board-twinkle {
+  0%, 100% { opacity: 0.1; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1); }
+}
+@keyframes pit-gleam {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.75; }
+}
+
+.board-aura { animation: board-aura-pulse 4.5s ease-in-out infinite; }
+.board-shimmer {
+  background: linear-gradient(100deg, transparent 32%, rgba(255,226,164,0.28) 47%, rgba(255,244,214,0.5) 50%, rgba(255,226,164,0.28) 53%, transparent 68%);
+  background-size: 260% 100%;
+  animation: board-shimmer-sweep 7s linear infinite;
+  mix-blend-mode: overlay;
+}
+.board-sparkle { animation: board-twinkle 2.6s ease-in-out infinite; }
+.pit-gleam { animation: pit-gleam 3.2s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .board-aura, .board-shimmer, .board-sparkle, .pit-gleam {
+    animation: none !important;
+  }
+}

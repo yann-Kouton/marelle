@@ -13,6 +13,21 @@ function seededRand(n) {
   return x - Math.floor(x);
 }
 
+// Poussière dorée flottant sur le plateau — positions stables (calculées une
+// seule fois) pour une ambiance scintillante sans re-render inutile.
+const BOARD_SPARKLES = Array.from({ length: 18 }).map((_, i) => {
+  const r1 = seededRand(i * 3.17 + 1.3);
+  const r2 = seededRand(i * 7.71 + 4.9);
+  const r3 = seededRand(i * 11.31 + 9.2);
+  return {
+    top: `${5 + r1 * 90}%`,
+    left: `${3 + r2 * 94}%`,
+    size: 2 + Math.round(r3 * 2),
+    delay: (r1 * 3.2).toFixed(2),
+    duration: (2.1 + r2 * 2.6).toFixed(2),
+  };
+});
+
 // Position façon "tas de graines" : spirale de phyllotaxie (angle d'or),
 // pour un remplissage organique du trou quel que soit le nombre de graines.
 function seedPosition(i, total, radiusPct) {
@@ -36,7 +51,7 @@ function SeedPile({ pitIndex, count, justLanded, lifting, capturing }) {
         style={{
           left: `${50 + x}%`,
           top: `${50 + y}%`,
-          width: "22%",
+          width: "23%",
           aspectRatio: "1.35 / 1",
           transform: `translate(-50%, -50%) rotate(${rot}deg)`,
           background: `radial-gradient(circle at 32% 28%, ${tone}, #4a2f1a 88%)`,
@@ -141,21 +156,26 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
         type="button"
         onClick={() => onCellClick?.(i)}
         disabled={disabled || !isPlayable}
-        className={`relative w-full max-w-[3.25rem] sm:max-w-[4.5rem] aspect-square mx-auto rounded-full transition-transform
+        className={`relative w-full max-w-[4.25rem] sm:max-w-[6rem] aspect-square mx-auto rounded-full transition-transform
           ${isPlayable ? "hover:-translate-y-0.5 cursor-pointer" : "cursor-default"}
           ${isPlayable ? "active:translate-y-0" : ""}
           ${justLanded !== null ? "pit-pulse" : ""}
         `}
         style={{
-          background: "radial-gradient(circle at 35% 30%, #3a2515, #170c07 72%)",
+          background: "radial-gradient(circle at 35% 28%, #46291a, #170c07 74%)",
           boxShadow: isPlayable
-            ? "inset 0 3px 6px rgba(0,0,0,0.7), inset 0 -2px 3px rgba(255,255,255,0.06), 0 0 0 2px rgba(217,153,45,0.55)"
-            : "inset 0 3px 6px rgba(0,0,0,0.7), inset 0 -2px 3px rgba(255,255,255,0.06)",
+            ? "inset 0 4px 8px rgba(0,0,0,0.75), inset 0 -2px 4px rgba(255,255,255,0.08), inset 0 0 0 1.5px rgba(217,153,45,0.4), 0 0 0 3px rgba(217,153,45,0.65), 0 0 16px 2px rgba(217,153,45,0.4)"
+            : "inset 0 4px 8px rgba(0,0,0,0.75), inset 0 -2px 4px rgba(255,255,255,0.08), inset 0 0 0 1.5px rgba(217,153,45,0.2)",
           outline: wasCaptured && !isCapturingNow ? "2px solid rgba(251,191,36,0.55)" : "none",
           outlineOffset: "2px",
         }}
         aria-label={`Trou ${i + 1}, ${seeds} graine${seeds > 1 ? "s" : ""}`}
       >
+        {/* Reflet vitré doré, pour un aspect "coupe précieuse" */}
+        <span
+          className="absolute inset-0 rounded-full pointer-events-none pit-gleam"
+          style={{ background: "radial-gradient(circle at 30% 16%, rgba(255,238,200,0.16), transparent 48%)" }}
+        />
         <SeedPile
           pitIndex={i}
           count={seeds}
@@ -164,13 +184,13 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
           capturing={isCapturingNow}
         />
         <span
-          className="absolute -bottom-1 -right-1 flex items-center justify-center rounded-full text-[10px] sm:text-xs font-bold tabular-nums text-stone-100 pointer-events-none"
+          className="absolute -bottom-1 -right-1 flex items-center justify-center rounded-full text-[11px] sm:text-sm font-bold tabular-nums text-stone-100 pointer-events-none"
           style={{
-            minWidth: "1.15rem",
-            height: "1.15rem",
-            padding: "0 0.2rem",
+            minWidth: "1.3rem",
+            height: "1.3rem",
+            padding: "0 0.25rem",
             background: "linear-gradient(155deg, #5a3a20, #2c1a0d)",
-            boxShadow: "0 1px 2px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 0 1.5px rgba(217,153,45,0.5)",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 0 1.5px rgba(217,153,45,0.55)",
           }}
         >
           {seeds}
@@ -180,31 +200,65 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full max-w-lg mx-auto">
+    <div className="flex flex-col items-center gap-4 w-full max-w-2xl mx-auto">
       <StatusStrip turn={state.turn} winner={state.winner} />
 
-      <div
-        className="flex w-full items-stretch gap-1.5 sm:gap-3 p-2.5 sm:p-5 rounded-[1.75rem]"
-        style={{
-          background:
-            "radial-gradient(140% 160% at 25% -10%, rgba(255,255,255,0.07), transparent 55%), repeating-linear-gradient(100deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 4px), linear-gradient(155deg, #8a5a34 0%, #6b4226 45%, #4a2d17 100%)",
-          boxShadow:
-            "inset 0 2px 3px rgba(255,255,255,0.12), inset 0 -10px 20px rgba(0,0,0,0.45), 0 20px 45px -16px rgba(0,0,0,0.65)",
-          border: "1px solid rgba(0,0,0,0.35)",
-        }}
-      >
-        <Store player="P2" count={captured.P2} turn={state.turn} winner={state.winner} />
+      <div className="relative w-full">
+        {/* Aura dorée pulsante derrière le plateau */}
+        <div
+          className="absolute -inset-4 sm:-inset-7 rounded-[2.5rem] board-aura pointer-events-none"
+          style={{
+            background: "radial-gradient(60% 85% at 50% 40%, rgba(217,153,45,0.4), transparent 72%)",
+            filter: "blur(20px)",
+          }}
+        />
 
-        <div className="flex flex-1 min-w-0 flex-col justify-between gap-2.5 sm:gap-3.5 py-1">
-          <div className="grid grid-cols-6 gap-1.5 sm:gap-3">{TOP_ORDER.map(renderPit)}</div>
-          <div
-            className="h-px w-full rounded-full"
-            style={{ background: "linear-gradient(90deg, transparent, rgba(0,0,0,0.4) 15%, rgba(0,0,0,0.4) 85%, transparent)" }}
-          />
-          <div className="grid grid-cols-6 gap-1.5 sm:gap-3">{BOTTOM_ORDER.map(renderPit)}</div>
+        <div
+          className="relative overflow-hidden flex w-full items-stretch gap-2 sm:gap-4 p-3 sm:p-6 rounded-[1.75rem]"
+          style={{
+            background:
+              "radial-gradient(140% 160% at 25% -10%, rgba(255,255,255,0.07), transparent 55%), repeating-linear-gradient(100deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 4px), linear-gradient(155deg, #8a5a34 0%, #6b4226 45%, #4a2d17 100%)",
+            boxShadow:
+              "inset 0 2px 3px rgba(255,255,255,0.12), inset 0 -10px 20px rgba(0,0,0,0.45), 0 0 0 1.5px rgba(217,153,45,0.3), 0 20px 45px -16px rgba(0,0,0,0.65)",
+            border: "1px solid rgba(0,0,0,0.35)",
+          }}
+        >
+          {/* Balayage lumineux façon vernis précieux */}
+          <div className="absolute inset-0 board-shimmer pointer-events-none" />
+
+          {/* Poussière dorée scintillante */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[1.75rem]">
+            {BOARD_SPARKLES.map((s, i) => (
+              <span
+                key={i}
+                className="absolute rounded-full board-sparkle"
+                style={{
+                  top: s.top,
+                  left: s.left,
+                  width: s.size,
+                  height: s.size,
+                  background: "#ffe9b8",
+                  boxShadow: "0 0 6px 1.5px rgba(255,214,120,0.85)",
+                  animationDelay: `${s.delay}s`,
+                  animationDuration: `${s.duration}s`,
+                }}
+              />
+            ))}
+          </div>
+
+          <Store player="P2" count={captured.P2} turn={state.turn} winner={state.winner} />
+
+          <div className="relative flex flex-1 min-w-0 flex-col justify-between gap-3 sm:gap-4 py-1">
+            <div className="grid grid-cols-6 gap-2 sm:gap-4">{TOP_ORDER.map(renderPit)}</div>
+            <div
+              className="h-px w-full rounded-full"
+              style={{ background: "linear-gradient(90deg, transparent, rgba(0,0,0,0.4) 15%, rgba(217,153,45,0.35) 50%, rgba(0,0,0,0.4) 85%, transparent)" }}
+            />
+            <div className="grid grid-cols-6 gap-2 sm:gap-4">{BOTTOM_ORDER.map(renderPit)}</div>
+          </div>
+
+          <Store player="P1" count={captured.P1} turn={state.turn} winner={state.winner} />
         </div>
-
-        <Store player="P1" count={captured.P1} turn={state.turn} winner={state.winner} />
       </div>
     </div>
   );
@@ -226,20 +280,24 @@ function Store({ player, count, turn, winner }) {
   }, [count]);
 
   return (
-    <div className="flex flex-col items-center justify-between gap-2 w-12 sm:w-[4.75rem] shrink-0">
+    <div className="relative flex flex-col items-center justify-between gap-2 w-14 sm:w-[5.75rem] shrink-0">
       <span
         className="w-1.5 h-1.5 rounded-full shrink-0"
         style={{ background: color, boxShadow: isActive ? `0 0 8px ${color}` : "none" }}
       />
       <div
-        className={`relative flex-1 w-full rounded-[1.4rem] ${pulse ? "store-pulse" : ""}`}
+        className={`relative flex-1 w-full rounded-[1.4rem] overflow-hidden ${pulse ? "store-pulse" : ""}`}
         style={{
-          background: "radial-gradient(circle at 35% 25%, #3a2515, #170c07 75%)",
-          boxShadow: `inset 0 3px 8px rgba(0,0,0,0.75), inset 0 -2px 3px rgba(255,255,255,0.05)${
-            isActive ? `, 0 0 0 2px ${color}55` : ""
+          background: "radial-gradient(circle at 35% 22%, #46291a, #170c07 76%)",
+          boxShadow: `inset 0 3px 8px rgba(0,0,0,0.75), inset 0 -2px 3px rgba(255,255,255,0.05), inset 0 0 0 1.5px rgba(217,153,45,0.2)${
+            isActive ? `, 0 0 0 2px ${color}55, 0 0 14px 1px ${color}55` : ""
           }`,
         }}
       >
+        <span
+          className="absolute inset-0 pointer-events-none pit-gleam"
+          style={{ background: "radial-gradient(circle at 30% 14%, rgba(255,238,200,0.14), transparent 45%)" }}
+        />
         <SeedPile pitIndex={player === "P1" ? 100 : 200} count={Math.min(count, 25)} />
       </div>
       <span className="text-xs sm:text-sm font-medium text-stone-300 tabular-nums">
