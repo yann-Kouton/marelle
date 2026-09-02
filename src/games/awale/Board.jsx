@@ -183,12 +183,10 @@ export default function Board({ state, playable = [], onCellClick, disabled = fa
           lifting={isLifting}
           capturing={isCapturingNow}
         />
-        <span
-          className="absolute -bottom-1 -right-1 flex items-center justify-center rounded-full text-[11px] sm:text-sm font-bold tabular-nums text-stone-100 pointer-events-none"
+                    <span
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-1 sm:mt-1.5 flex items-center justify-center rounded-full min-w-[1rem] h-4 sm:min-w-[1.3rem] sm:h-[1.3rem] text-[9px] sm:text-sm font-bold tabular-nums text-stone-100 pointer-events-none"
           style={{
-            minWidth: "1.3rem",
-            height: "1.3rem",
-            padding: "0 0.25rem",
+            padding: "0 0.15rem",
             background: "linear-gradient(155deg, #5a3a20, #2c1a0d)",
             boxShadow: "0 1px 2px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 0 1.5px rgba(217,153,45,0.55)",
           }}
